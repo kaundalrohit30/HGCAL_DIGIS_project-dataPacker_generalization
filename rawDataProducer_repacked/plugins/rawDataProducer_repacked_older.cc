@@ -76,10 +76,10 @@
 // class declaration
 //
 
-class rawDataProducer_repacked : public edm::stream::EDProducer<> {
+class rawDataProducer_repacked_older : public edm::stream::EDProducer<> {
 public:
-  explicit rawDataProducer_repacked(const edm::ParameterSet&);
-  ~rawDataProducer_repacked() override;
+  explicit rawDataProducer_repacked_older(const edm::ParameterSet&);
+  ~rawDataProducer_repacked_older() override;
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -139,7 +139,7 @@ private:
 //
 // constructors and destructor
 //
-rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iConfig)
+rawDataProducer_repacked_older::rawDataProducer_repacked_older(const edm::ParameterSet& iConfig)
 : digisToken_(consumes<hgcaldigi::HGCalDigiHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
     econdInfoTkn_(consumes<hgcaldigi::HGCalECONDPacketInfoHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
     fedInfoTkn_(consumes<hgcaldigi::HGCalFEDPacketInfoHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
@@ -216,7 +216,7 @@ rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iCon
   //now do what ever other initialization is needed
 }
 
-rawDataProducer_repacked::~rawDataProducer_repacked() {
+rawDataProducer_repacked_older::~rawDataProducer_repacked_older() {
   // do anything here that needs to be done at destruction time
   // (e.g. close files, deallocate resources etc.)
   //
@@ -228,7 +228,7 @@ rawDataProducer_repacked::~rawDataProducer_repacked() {
 //
 
 // ------------ method called to produce the data  ------------
-void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
+void rawDataProducer_repacked_older::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   using namespace edm;
   using namespace std;
   
@@ -326,16 +326,9 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   
   int eRxNum = 0;
   int chIdx = 0;
-  int previousERx = -1;
-  std::vector<uint16_t> moduleIdx;
-  int moduleIdxCounter = 0;
-
+  //int previousERx = -1;
   for (int32_t i = 0; i < ndenseIndices && digis.isValid(); i++) {
-
-    if((i == 0) or (i/37 != (i-1)/37)){
-      moduleIdx.push_back(denseIndexInfo_view.fedReadoutSeq()[i]);
-      //cout << " idx: " << moduleIdx.size()-1 << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
-    }
+      
     if ((digis_view.flags()[i] == hgcal::DIGI_FLAG::NotAvailable)) {
         continue;
     }
@@ -375,7 +368,6 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     }
 
     while (allERxData.size() <= static_cast<size_t>(eRxNum)) {
-          //cout << "vecIdx: " << allERxData.size() << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
         hgcal::econd::ERxData erxData;
         erxData.tctp.resize(37, 0);
         erxData.adc.resize(37, 0);
@@ -386,7 +378,6 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
         
         //allERxData.emplace_back();
         enableMaps.emplace_back(37, false);
-        //moduleIdxCounter++;
     }
 
     //if (eRxNum != previousERx) {
@@ -402,14 +393,13 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     //cout << i << "  eRxNum: " << i << "/" << 37 << " = " <<  eRxNum << "  chId " << chIdx << "  FilledIdx: " << idx << endl;
     //cout << i << "  eRxNum: " << eRxNum << " eRxDataSize: " << allERxData.size()  << "  chId " << chIdx << endl;
     
-    //cout << "vecIdx: " << eRxNum << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
     enableMaps.at(eRxNum).at(chIdx) = true;
     allERxData.at(eRxNum).tctp.at(chIdx) = digis_view.tctp()[i];
     allERxData.at(eRxNum).adc.at(chIdx) = digis_view.adc()[i];
     allERxData.at(eRxNum).adcm.at(chIdx) = digis_view.adcm1()[i];
     allERxData.at(eRxNum).toa.at(chIdx) = digis_view.toa()[i];
     allERxData.at(eRxNum).tot.at(chIdx) = digis_view.tot()[i];
-    //moduleIdxCounter++;
+
     //allERxData[eRxNum].tctp.push_back(digis_view.tctp()[i]);
     //allERxData[eRxNum].adc.push_back(digis_view.adc()[i]);
     //allERxData[eRxNum].adcm.push_back(digis_view.adcm1()[i]);
@@ -437,8 +427,6 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
      << '\n';*/
     }
     //}
-
-
   
     cout << "nGoodDigis: " << nGoodDigis << endl;
     cout << endl;
@@ -550,37 +538,11 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   int ECOND_counter = 0;
   int CB_idx = 0;
   uint32_t padding = 0;
-  //cout << "Total eRx: " << allERxData.size() << " ModuleIdx size: " << moduleIdx.size() << endl;
-  int previousModuleIdx = -1;
-  int currentModuleIdx = 0;
-  int nextModuleIdx = 0;
-
-  for(int i = 0; i < 71; i++){
-      for(int j = 0; j < 37; j++)
-      cout << "eRx: " << i << " channel: " << j << " enableChannel: " << enableMaps[i][j] << endl;
-    }
-
   for(size_t erx = 0; erx < allERxData.size(); ++erx){   //looping over all eRx
 
-    bool alleRxPresent = std::all_of(enableMaps[erx].begin(),
-                enableMaps[erx].end(),
-                [](bool enabled) { return enabled; });
-    if(alleRxPresent){
-      passThrough = true;
-    }
-    else 
-      passThrough = false;
-
-    //if(erx % 6 == 0){  //Each ECOND have 6 eRX input (LD modules)
-    currentModuleIdx = moduleIdx[erx];
-    if(erx < allERxData.size() -1 ){
-      nextModuleIdx = moduleIdx[erx+1];
-    }
-    //cout << nextModuleIdx << endl;
-    if(currentModuleIdx != previousModuleIdx){  //while moving to next module then only ECOND header is addded
-      previousModuleIdx = currentModuleIdx;
+    if(erx % 6 == 0){  //Each ECOND have 6 eRX input (LD modules)
       CRC_calc.clear();
-    //cout << "eRx: " << erx-1 << "  Module_eRx: " << moduleIdx[erx] << "  Module_eRx-1: " << moduleIdx[erx-1] << endl;
+
   ///////////////ooooooooooooOOOOOOOOOOOOOOOOO CB Header OOOOOOOOOOOOOOoooooooooooooooooooo////////////////////
 
 
@@ -656,11 +618,14 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     [](bool enabled) { return enabled; }
     );
 
+    bool alleRxPresent = std::all_of(enableMaps[erx].begin(),
+                enableMaps[erx].end(),
+                [](bool enabled) { return enabled; });
     // All 37 channels are true
     
-    if(passThrough == true){
+    if(alleRxPresent){
       bitE = false;
-      //passThrough = true;
+      passThrough = true;
       const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
       //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
       econdPacket.push_back(eRxheader[0]);     //filling ERxHeaders 
@@ -680,13 +645,13 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     }
     else if (!eRxPresent) {
         bitE = true;
-        //passThrough = false;
+        passThrough = false;
         const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
         econdPacket.push_back(eRxheader[0]);   //filling ERxHeaders 
         CRC_calc.push_back(eRxheader[0]);  
     } else{
       bitE = false;
-      //passThrough = false;
+      passThrough = false;
       const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
       //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
       econdPacket.push_back(eRxheader[0]);     //filling ERxHeaders 
@@ -708,10 +673,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 //////// ooooooooooOOOOOOOOOOOOOOOOO CRC Computation (ECOND Tailer) OOOOOOOOOOOOOOoooooooooooooo /////////////////////////
 
 
-    //if(CRC_counter % 6 == 0){
-    
-    if((nextModuleIdx != currentModuleIdx) or (erx == (allERxData.size()-1))){
-      //cout << nextModuleIdx << "  " << currentModuleIdx << "  " << payloadLength[econdIdx-1] << endl;//"   " << std::hex << crc32 << std::dec << endl;
+    if(CRC_counter % 6 == 0){
       crcvec.assign(CRC_calc.begin(), CRC_calc.end());
       std::transform(crcvec.begin(), crcvec.end(), crcvec.begin(), [](uint32_t w) {
       return ((w << 24) & 0xFF000000) | ((w << 8) & 0x00FF0000) | ((w >> 8) & 0x0000FF00) |
@@ -725,9 +687,8 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
                            hgcal::ECOND_FRAME::CRC_INITREM,
                            hgcal::ECOND_FRAME::CRC_FINALXOR,
                            false,
-                           false>(bytes, (payloadLength[econdIdx-1] - 1) * 4);  //need to be checked !!!!!
+                           false>(bytes, (payloadLength[econdIdx] - 1) * 4);
 
-      
       if((CRC_calc.size() + 1) % 2 != 0){
         econdPacket.push_back(crc32);
         econdPacket.push_back(padding);  //padding word
@@ -741,7 +702,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
 
 
-  ////int counterECON = 0;
+  //int counterECON = 0;
   //for (size_t i = 0; i + 1 < econdPacket.size(); i += 2) {
   ////for (size_t i = 0; i < econdPacket.size(); i++) {
 //
@@ -775,19 +736,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   /////////////oooooooooooOOOOOOOOOOOO SLink Header OOOOOOOOOOOOOOOOoooooooooooooooo////////////////
 
 size_t payloadBytes = econdPacket.size() * sizeof(uint32_t);
-
-size_t remainder = payloadBytes % 16;
-if (remainder != 0) {
-    size_t paddingBytes = 16 - remainder;
-    // Since each vector element is 4 bytes
-    size_t paddingWords = paddingBytes / sizeof(uint32_t);
-
-    for (size_t i = 0; i < paddingWords; ++i) {
-        econdPacket.push_back(0);
-    }
-}
-
-size_t totalSize = sizeof(SLinkRocketHeader_v3) + econdPacket.size() * sizeof(uint32_t) + sizeof(SLinkRocketTrailer_v3);
+size_t totalSize = sizeof(SLinkRocketHeader_v3) + payloadBytes + sizeof(SLinkRocketTrailer_v3);
 uint32_t sid = 1601;
 uint8_t emu_status = 0;
 uint16_t l1a_types = 132;
@@ -802,7 +751,7 @@ uint16_t daqcrc = 57005;
 constexpr size_t hdrsize = sizeof(SLinkRocketHeader_v3);
 constexpr size_t trsize  = sizeof(SLinkRocketTrailer_v3);
 
-cout << "ECOND packetSize: " << econdPacket.size() << "  payloadBytes: "  << econdPacket.size() * sizeof(uint32_t) << "  totalSize: " << totalSize << endl;
+cout << "ECOND packetSize after: " << econdPacket.size() << "  payloadBytes: "  << payloadBytes << "  totalSize: " << totalSize << endl;
 
 unsigned char slinkPacket[totalSize];
 std::memset(slinkPacket, 0, totalSize);
@@ -835,9 +784,9 @@ auto st0 = new ((void*)(slinkPacket+hdrsize+payloadBytes))
 //              << words[i] << std::dec << '\n';
 //}
 
-//auto rawDataBuffer = std::make_unique<RawDataBuffer>(totalSize);
+auto rawDataBuffer = std::make_unique<RawDataBuffer>(totalSize);
 
-//rawDataBuffer->addSource(sid, slinkPacket, totalSize);
+rawDataBuffer->addSource(sid, slinkPacket, totalSize);
 
 //auto const& fragData0 = rawDataBuffer->fragmentData(sid);
 //cout << "fragment size = " << fragData0.size() << endl;
@@ -845,7 +794,7 @@ auto st0 = new ((void*)(slinkPacket+hdrsize+payloadBytes))
 //auto hdrView0 = makeSLinkRocketHeaderView(fragData0.dataHeader(hdrsize));
 //auto trlView0 = makeSLinkRocketTrailerView(fragData0.dataTrailer(trsize), hdrView0->version());
 
-//iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));
+iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));
 
 
 /*
@@ -1090,12 +1039,12 @@ iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));*/
 }
 
 // ------------ method called once each stream before processing any runs, lumis or events  ------------
-void rawDataProducer_repacked::beginStream(edm::StreamID) {
+void rawDataProducer_repacked_older::beginStream(edm::StreamID) {
   // please remove this method if not needed
 }
 
 // ------------ method called once each stream after processing all runs, lumis and events  ------------
-void rawDataProducer_repacked::endStream() {
+void rawDataProducer_repacked_older::endStream() {
   // please remove this method if not needed
 }
 
@@ -1132,7 +1081,7 @@ rawDataBufferProducer::endLuminosityBlock(edm::LuminosityBlock const&, edm::Even
 */
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
-void rawDataProducer_repacked::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+void rawDataProducer_repacked_older::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   //The following says we do not know what parameters are allowed so do no validation
   // Please change this to state exactly what you do use, even if it is no parameters
   edm::ParameterSetDescription desc;
@@ -1140,9 +1089,9 @@ void rawDataProducer_repacked::fillDescriptions(edm::ConfigurationDescriptions& 
       "hgcalDigis",
       edm::InputTag("hgcalDigis"));
 
-  descriptions.add("rawDataBufferProducer", desc);
+  descriptions.add("rawDataBufferProducerOld", desc);
 }
 
 
 //define this as a plug-in
-DEFINE_FWK_MODULE(rawDataProducer_repacked);
+DEFINE_FWK_MODULE(rawDataProducer_repacked_older);
