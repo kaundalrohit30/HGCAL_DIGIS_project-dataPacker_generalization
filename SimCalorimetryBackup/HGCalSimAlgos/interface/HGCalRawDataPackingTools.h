@@ -12,7 +12,7 @@ namespace hgcal {
     /// \note based on Fig. 20 of ECON-D specifications
     /// \return a vector of new words
     std::vector<uint32_t> produceERxData(
-        const ERxChannelEnable&, const ERxData&, bool passZS, bool passZSm1, bool hasToA, bool char_mode);
+        const ERxChannelEnable&, const ERxData&, bool passZS, bool passZSm1, bool hasToA, bool char_mode, bool passThrough);
 
     /// returns the words for a new eRx header
     /// \note based on Fig. 33 of ECON-D specifications

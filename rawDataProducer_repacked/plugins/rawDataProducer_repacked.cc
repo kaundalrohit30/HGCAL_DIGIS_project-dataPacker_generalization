@@ -555,10 +555,10 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   int currentModuleIdx = 0;
   int nextModuleIdx = 0;
 
-  for(int i = 0; i < 71; i++){
-      for(int j = 0; j < 37; j++)
-      cout << "eRx: " << i << " channel: " << j << " enableChannel: " << enableMaps[i][j] << endl;
-    }
+  //for(int i = 0; i < 71; i++){
+  //    for(int j = 0; j < 37; j++)
+  //    cout << "eRx: " << i << " channel: " << j << " enableChannel: " << enableMaps[i][j] << endl;
+  //  }
 
   for(size_t erx = 0; erx < allERxData.size(); ++erx){   //looping over all eRx
 
@@ -742,28 +742,28 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
 
   ////int counterECON = 0;
-  //for (size_t i = 0; i + 1 < econdPacket.size(); i += 2) {
-  ////for (size_t i = 0; i < econdPacket.size(); i++) {
-//
-  //  //if(sizeof(econdPacket[i]) > 4 or sizeof(econdPacket[i]) < 4)
-  //  //  cout << "Word " << i << " Size: " << sizeof(econdPacket[i]) << endl;
-//
-  //  //cout << i+1 << " 32-bit word: "
-  //  //     << std::hex << econdPacket[i]
-  //  //     << "  "
-  //  //     << std::bitset<32>(econdPacket[i])
-  //  //     << std::dec << endl;
-//
-  //  uint64_t word64 =
-  //      static_cast<uint64_t>(econdPacket[i+1]) |
-  //      (static_cast<uint64_t>(econdPacket[i]) << 32);
-//
-  //  cout << "64-bit word: "
-  //       << std::hex << word64
-  //       << "  "
-  //       << std::bitset<64>(word64)
-  //       << std::dec << endl;
-  //}
+  for (size_t i = 0; i + 1 < econdPacket.size(); i += 2) {
+  //for (size_t i = 0; i < econdPacket.size(); i++) {
+
+    //if(sizeof(econdPacket[i]) > 4 or sizeof(econdPacket[i]) < 4)
+    //  cout << "Word " << i << " Size: " << sizeof(econdPacket[i]) << endl;
+
+    //cout << i+1 << " 32-bit word: "
+    //     << std::hex << econdPacket[i]
+    //     << "  "
+    //     << std::bitset<32>(econdPacket[i])
+    //     << std::dec << endl;
+
+    uint64_t word64 =
+        static_cast<uint64_t>(econdPacket[i+1]) |
+        (static_cast<uint64_t>(econdPacket[i]) << 32);
+
+    cout << "64-bit word: "
+         << std::hex << word64
+         << "  "
+         << std::bitset<64>(word64)
+         << std::dec << endl;
+  }
 
   //cout << "ECOND packetSize before: " << econdPacket.size() << endl;
 
