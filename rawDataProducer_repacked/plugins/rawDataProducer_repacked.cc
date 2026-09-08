@@ -43,6 +43,7 @@
 #include "CondFormats/DataRecord/interface/HGCalElectronicsMappingRcd.h"
 #include "CondFormats/DataRecord/interface/HGCalDenseIndexInfoRcd.h"
 #include "CondFormats/HGCalObjects/interface/HGCalMappingParameterHost.h"
+#include "CondFormats/HGCalObjects/interface/HGCalMappingModuleIndexer.h"
 #include "DataFormats/HGCalDigi/interface/HGCalECONDPacketInfoSoA.h"
 #include "DataFormats/HGCalDigi/interface/HGCalECONDPacketInfoHost.h"
 #include "DataFormats/HGCalDigi/interface/HGCalFEDPacketInfoSoA.h"
@@ -105,8 +106,10 @@ private:
   edm::ESGetToken<hgcal::HGCalDenseIndexInfoHost, HGCalDenseIndexInfoRcd> denseIndexInfoTkn_;
   edm::ESGetToken<hgcal::HGCalMappingCellParamHost, HGCalElectronicsMappingRcd> cellTkn_;
   edm::ESGetToken<hgcal::HGCalMappingModuleParamHost, HGCalElectronicsMappingRcd> moduleTkn_;
-
+  edm::ESGetToken<HGCalMappingModuleIndexer, HGCalElectronicsMappingRcd> moduleIndexTkn_;
   edm::EDPutTokenT<RawDataBuffer> rawDataBufferPutToken_;
+
+  //std::string tableName_,typeCodeTableName_;
 
   TTree* tree;
 
@@ -149,6 +152,7 @@ rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iCon
     denseIndexInfoTkn_(esConsumes<hgcal::HGCalDenseIndexInfoHost, HGCalDenseIndexInfoRcd>()),
     cellTkn_(esConsumes()),
     moduleTkn_(esConsumes()),
+    moduleIndexTkn_(esConsumes<HGCalMappingModuleIndexer, HGCalElectronicsMappingRcd>()),
     rawDataBufferPutToken_(produces())
 
 {
@@ -156,11 +160,11 @@ rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iCon
   
     edm::Service<TFileService> fs;
 
-    for (int ch = 0; ch < 222; ++ch) {
+    for (int mod = 0; mod < 12; ++mod) {
         h_ADC_channel.push_back(
             fs->make<TH1D>(
-                Form("ADC_ch%d", ch),
-                Form("ADC Distribution Channel %d;ADC;Counts", ch),
+                Form("ADC_mod%d", mod),
+                Form("ADC Distribution module %d;ADC;Counts", mod),
                 1024, 0, 1024
             )
         );
@@ -283,6 +287,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   auto const& cellInfo = iSetup.getData(cellTkn_);
   auto const& cellInfo_view = cellInfo.const_view();
   auto const& moduleInfo = iSetup.getData(moduleTkn_);
+  auto const& moduleIndex = iSetup.getData(moduleIndexTkn_);
   auto const& moduleInfo_view = moduleInfo.const_view();
 
   int32_t ndigis = 0;
@@ -317,6 +322,27 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
      << std::setw(15) << "iscalib"
      << '\n';*/
 
+
+  uint32_t nmodules = moduleIndex.maxModulesCount();
+  std::vector<uint32_t> fed(nmodules), seq(nmodules), nErx(nmodules);
+  //typedef std::pair<std::string, std::vector<uint32_t> > TypeCode2Idx_t;
+  //std::vector<TypeCode2Idx_t> typeCodeTreeIndices;
+  uint32_t idx(0);
+  for(auto it : moduleIndex.typecodeMap() ) {
+
+      //std::string typecode = it.first;
+      //std::replace( typecode.begin(), typecode.end(), '-', '_');
+      //typeCodeTreeIndices.push_back( TypeCode2Idx_t(typecode, {idx} ) );
+
+      fed[idx] = it.second.first;
+      seq[idx] = it.second.second;
+      nErx[idx] = moduleIndex.getNumERxs(fed[idx], seq[idx]);
+      //std::cout << "nErx: " << moduleIndex.getNumERxs(fed[idx], seq[idx]) << std::endl;
+      idx++;
+
+      //
+    }
+
   std::vector<hgcal::econd::ERxData> allERxData;//(72);
   std::vector<hgcal::econd::ERxChannelEnable> enableMaps;//(72, hgcal::econd::ERxChannelEnable(37,false));
   //hgcal::econd::ERxChannelEnable enableMap(37,false);
@@ -325,17 +351,20 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   const std::vector<uint8_t> econd_status(12, hgcal::backend::ECONDPacketStatus::Normal); //for CB
   
   int eRxNum = 0;
+  int TotalERx =  std::accumulate(nErx.begin(), nErx.end(), uint32_t{0});
   int chIdx = 0;
   int previousERx = -1;
-  std::vector<uint16_t> moduleIdx;
-  int moduleIdxCounter = 0;
+  //std::vector<uint16_t> moduleIdx;
+  //int moduleIdxCounter = 0;
+  
+  uint16_t modulNum[12] = {0,1,2,3,4,5,6,7,8,9,10,11};
 
   for (int32_t i = 0; i < ndenseIndices && digis.isValid(); i++) {
 
-    if((i == 0) or (i/37 != (i-1)/37)){
-      moduleIdx.push_back(denseIndexInfo_view.fedReadoutSeq()[i]);
-      //cout << " idx: " << moduleIdx.size()-1 << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
-    }
+    //if((i == 0) or (i/37 != (i-1)/37)){
+    //  moduleIdx.push_back(denseIndexInfo_view.fedReadoutSeq()[i]);
+    //  //cout << " idx: " << moduleIdx.size()-1 << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
+    //}
     if ((digis_view.flags()[i] == hgcal::DIGI_FLAG::NotAvailable)) {
         continue;
     }
@@ -366,12 +395,12 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     chIdx  = denseIndexInfo_view.chNumber()[i] % 37;
     int channel = denseIndexInfo_view.chNumber()[i];
 
-    if(denseIndexInfo_view.fedReadoutSeq()[i] == 9){
+    if(denseIndexInfo_view.fedReadoutSeq()[i] == modulNum[denseIndexInfo_view.fedReadoutSeq()[i]]){
 
-    if (channel >= 0 && channel < static_cast<int>(h_ADC_channel.size())) {
-        h_ADC_channel[channel]->Fill(digis_view.adc()[i]);
-    }
-
+    //if (channel >= 0 && channel < static_cast<int>(h_ADC_channel.size())) {
+    //    h_ADC_channel[channel]->Fill(digis_view.adc()[i]);
+    //}
+      h_ADC_channel[denseIndexInfo_view.fedReadoutSeq()[i]]->Fill(digis_view.adc()[i]);
     }
 
     while (allERxData.size() <= static_cast<size_t>(eRxNum)) {
@@ -438,7 +467,22 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     }
     //}
 
-
+    if(allERxData.size() != static_cast<size_t>(TotalERx)){
+      while (allERxData.size() <= static_cast<size_t>(TotalERx)){
+          //cout << "vecIdx: " << allERxData.size() << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
+        hgcal::econd::ERxData erxData;
+        erxData.tctp.resize(37, 0);
+        erxData.adc.resize(37, 0);
+        erxData.adcm.resize(37, 0);
+        erxData.toa.resize(37, 0);
+        erxData.tot.resize(37, 0);
+        allERxData.push_back(std::move(erxData));
+        
+        //allERxData.emplace_back();
+        enableMaps.emplace_back(37, false);
+        //moduleIdxCounter++;
+    }
+    }
   
     cout << "nGoodDigis: " << nGoodDigis << endl;
     cout << endl;
@@ -538,27 +582,16 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   uint8_t rr = 0;
   uint8_t stat = 7;
   uint8_t Ham = 0;
-  bool bitE;
+  bool bitE = true;
   bool passZS = true;
   bool passZSm1 = true; 
   bool hasToA = false;
   bool charMode = false;
   uint8_t econCrc = 244;
-  //for(int j = 0; j < 5; j++){
-  // uint8_t nbits = 0;
-  int CRC_counter = 1;
   int ECOND_counter = 0;
   int CB_idx = 0;
   uint32_t padding = 0;
-  //cout << "Total eRx: " << allERxData.size() << " ModuleIdx size: " << moduleIdx.size() << endl;
-  int previousModuleIdx = -1;
-  int currentModuleIdx = 0;
-  int nextModuleIdx = 0;
-
-  //for(int i = 0; i < 71; i++){
-  //    for(int j = 0; j < 37; j++)
-  //    cout << "eRx: " << i << " channel: " << j << " enableChannel: " << enableMaps[i][j] << endl;
-  //  }
+  int moduleNum = 0;
 
   for(size_t erx = 0; erx < allERxData.size(); ++erx){   //looping over all eRx
 
@@ -571,18 +604,12 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     else 
       passThrough = false;
 
-    //if(erx % 6 == 0){  //Each ECOND have 6 eRX input (LD modules)
-    currentModuleIdx = moduleIdx[erx];
-    if(erx < allERxData.size() -1 ){
-      nextModuleIdx = moduleIdx[erx+1];
-    }
-    //cout << nextModuleIdx << endl;
-    if(currentModuleIdx != previousModuleIdx){  //while moving to next module then only ECOND header is addded
-      previousModuleIdx = currentModuleIdx;
+    uint32_t eRxSum = std::accumulate(nErx.begin(), nErx.begin() + moduleNum, uint32_t{0});
+    
+    if(erx == 0 or erx == eRxSum){  
       CRC_calc.clear();
-    //cout << "eRx: " << erx-1 << "  Module_eRx: " << moduleIdx[erx] << "  Module_eRx-1: " << moduleIdx[erx-1] << endl;
-  ///////////////ooooooooooooOOOOOOOOOOOOOOOOO CB Header OOOOOOOOOOOOOOoooooooooooooooooooo////////////////////
 
+  ///////////////ooooooooooooOOOOOOOOOOOOOOOOO CB Header OOOOOOOOOOOOOOoooooooooooooooooooo////////////////////
 
     if(ECOND_counter % 2 == 0){ // 2 ECOND per CB
         std::vector<uint8_t> econd_status(12, hgcal::backend::ECONDPacketStatus::InactiveECOND);
@@ -637,19 +664,15 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
       econdPacket.push_back(econdHeader[1]);
       econdIdx++;
       ECOND_counter++;
+      //eRxSum += nErx[moduleNum];
+      //cout << "eRxSum: " << eRxSum << endl;
+      moduleNum++;
 
       //CRC_calc.push_back(econdHeader[0]);
       //CRC_calc.push_back(econdHeader[1]);
 
     }
 
-    //if(allERxData[erx].adc.size() == 0){  //if no data in the eRx then only fill the eRx header with bitE = 1 
-    //  bitE = true;
-    //  const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
-    //  //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
-    //  econdPacket.push_back(eRxheader[0]);     //filling ERxHeaders 
-    //  //econdPacket.push_back(eRxheader[1]);
-    //}
     bool eRxPresent = std::any_of(
     enableMaps[erx].begin(),
     enableMaps[erx].end(),
@@ -659,7 +682,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     // All 37 channels are true
     
     if(passThrough == true){
-      bitE = false;
+      //bitE = false;
       //passThrough = true;
       const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
       //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
@@ -679,15 +702,16 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
       }
     }
     else if (!eRxPresent) {
-        bitE = true;
+        bitE = false;
         //passThrough = false;
         const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
         econdPacket.push_back(eRxheader[0]);   //filling ERxHeaders 
         CRC_calc.push_back(eRxheader[0]);  
     } else{
-      bitE = false;
+      //bitE = false;
       //passThrough = false;
-      const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
+      
+        const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
       //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
       econdPacket.push_back(eRxheader[0]);     //filling ERxHeaders 
       econdPacket.push_back(eRxheader[1]);
@@ -707,10 +731,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
 //////// ooooooooooOOOOOOOOOOOOOOOOO CRC Computation (ECOND Tailer) OOOOOOOOOOOOOOoooooooooooooo /////////////////////////
 
-
-    //if(CRC_counter % 6 == 0){
-    
-    if((nextModuleIdx != currentModuleIdx) or (erx == (allERxData.size()-1))){
+    if(erx+1 == eRxSum){
       //cout << nextModuleIdx << "  " << currentModuleIdx << "  " << payloadLength[econdIdx-1] << endl;//"   " << std::hex << crc32 << std::dec << endl;
       crcvec.assign(CRC_calc.begin(), CRC_calc.end());
       std::transform(crcvec.begin(), crcvec.end(), crcvec.begin(), [](uint32_t w) {
@@ -735,35 +756,34 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
         econdPacket.push_back(crc32);
 
     }
-    CRC_counter++;
     
   }
 
 
 
   ////int counterECON = 0;
-  for (size_t i = 0; i + 1 < econdPacket.size(); i += 2) {
-  //for (size_t i = 0; i < econdPacket.size(); i++) {
-
-    //if(sizeof(econdPacket[i]) > 4 or sizeof(econdPacket[i]) < 4)
-    //  cout << "Word " << i << " Size: " << sizeof(econdPacket[i]) << endl;
-
-    //cout << i+1 << " 32-bit word: "
-    //     << std::hex << econdPacket[i]
-    //     << "  "
-    //     << std::bitset<32>(econdPacket[i])
-    //     << std::dec << endl;
-
-    uint64_t word64 =
-        static_cast<uint64_t>(econdPacket[i+1]) |
-        (static_cast<uint64_t>(econdPacket[i]) << 32);
-
-    cout << "64-bit word: "
-         << std::hex << word64
-         << "  "
-         << std::bitset<64>(word64)
-         << std::dec << endl;
-  }
+  //for (size_t i = 0; i + 1 < econdPacket.size(); i += 2) {
+  ////for (size_t i = 0; i < econdPacket.size(); i++) {
+//
+  //  //if(sizeof(econdPacket[i]) > 4 or sizeof(econdPacket[i]) < 4)
+  //  //  cout << "Word " << i << " Size: " << sizeof(econdPacket[i]) << endl;
+//
+  //  //cout << i+1 << " 32-bit word: "
+  //  //     << std::hex << econdPacket[i]
+  //  //     << "  "
+  //  //     << std::bitset<32>(econdPacket[i])
+  //  //     << std::dec << endl;
+//
+  //  uint64_t word64 =
+  //      static_cast<uint64_t>(econdPacket[i+1]) |
+  //      (static_cast<uint64_t>(econdPacket[i]) << 32);
+//
+  //  cout << "64-bit word: "
+  //       << std::hex << word64
+  //       << "  "
+  //       << std::bitset<64>(word64)
+  //       << std::dec << endl;
+  //}
 
   //cout << "ECOND packetSize before: " << econdPacket.size() << endl;
 
@@ -835,9 +855,9 @@ auto st0 = new ((void*)(slinkPacket+hdrsize+payloadBytes))
 //              << words[i] << std::dec << '\n';
 //}
 
-//auto rawDataBuffer = std::make_unique<RawDataBuffer>(totalSize);
+auto rawDataBuffer = std::make_unique<RawDataBuffer>(totalSize);
 
-//rawDataBuffer->addSource(sid, slinkPacket, totalSize);
+rawDataBuffer->addSource(sid, slinkPacket, totalSize);
 
 //auto const& fragData0 = rawDataBuffer->fragmentData(sid);
 //cout << "fragment size = " << fragData0.size() << endl;
@@ -845,7 +865,7 @@ auto st0 = new ((void*)(slinkPacket+hdrsize+payloadBytes))
 //auto hdrView0 = makeSLinkRocketHeaderView(fragData0.dataHeader(hdrsize));
 //auto trlView0 = makeSLinkRocketTrailerView(fragData0.dataTrailer(trsize), hdrView0->version());
 
-//iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));
+iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));
 
 
 /*
