@@ -140,10 +140,11 @@ std::vector<uint32_t> hgcal::econd::eRxSubPacketHeader(uint8_t stat,
   size_t i = 0;
   //std::cout << "channelEnable original: " << channel_enable << std::endl;
   for (const auto& ch : channel_enable){
-    channels_map64b |= (ch << i++);
-    //std::cout << ch <<;
+    channels_map64b |= (uint64_t(ch) << i++);
+    //std::cout << ch;
   }
-  //std::cout << "channelEnable original: " << std::hex << channels_map64b << std::dec << std::endl;
+  //std::cout << std::endl;
+  //std::cout << std::hex <<  std::bitset<64>(channels_map64b) << "  channelEnable original: " <<  channels_map64b  << std::dec << std::endl;
   return hgcal::econd::eRxSubPacketHeader(stat, hamming, bitE, common_mode0, common_mode1, channels_map64b);
 }
 
@@ -163,8 +164,8 @@ std::vector<uint32_t> hgcal::econd::eRxSubPacketHeader(
     //std::cout << std::hex << "channelMap: " << channels_map << "   chanmap1: " << chmapw1 << std::dec << std::endl;
   //add the channel map
   if (chmapw0 == 0 && chmapw1 == 0) {  // empty channels map (empty eRx)
-    //header[0] |= (bitE << hgcal::ECOND_FRAME::ERX_E_POS);
-    header[0] |= (bitE << hgcal::ECOND_FRAME::ERXFORMAT_POS);
+    header[0] |= (bitE << hgcal::ECOND_FRAME::ERX_E_POS);
+    //header[0] |= (bitE << hgcal::ECOND_FRAME::ERXFORMAT_POS);
     header[0] |= (1 << hgcal::ECOND_FRAME::ERXFORMAT_POS);  //raise the F bit (empty eRX)
     //std::cout << "empty eRx header0 " << std::hex << header[0] << std::dec << std::endl;
   } else {

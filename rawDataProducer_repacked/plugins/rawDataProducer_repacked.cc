@@ -787,10 +787,6 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
   //cout << "ECOND packetSize before: " << econdPacket.size() << endl;
 
-  for (size_t i = 0; i + 1 < econdPacket.size(); i += 2) {
-    std::swap(econdPacket[i], econdPacket[i + 1]);       // To get the correct sequence of the data wwords in the payload as in original raw data
-  }
-
 
   /////////////oooooooooooOOOOOOOOOOOO SLink Header OOOOOOOOOOOOOOOOoooooooooooooooo////////////////
 
@@ -807,6 +803,11 @@ if (remainder != 0) {
     }
 }
 
+for (size_t i = 0; i + 1 < econdPacket.size(); i += 2) {
+    std::swap(econdPacket[i], econdPacket[i + 1]);       // To get the correct sequence of the data wwords in the payload as in original raw data
+  }
+
+size_t payloadBytes_afterPadding = econdPacket.size() * sizeof(uint32_t);
 size_t totalSize = sizeof(SLinkRocketHeader_v3) + econdPacket.size() * sizeof(uint32_t) + sizeof(SLinkRocketTrailer_v3);
 uint32_t sid = 1601;
 uint8_t emu_status = 0;
@@ -841,7 +842,7 @@ std::memcpy(
 
 //auto st0 = new ((void*)(slinkPacket.data()+hdrsize+payloadBytes)) 
 //    SLinkRocketTrailer_v3(status, crc, fedObt[global_event_id-1], fedBX[global_event_id-1], totalSize >> SLR_WORD_NUM_BYTES_SHIFT, daqcrc);
-auto st0 = new ((void*)(slinkPacket+hdrsize+payloadBytes)) 
+auto st0 = new ((void*)(slinkPacket+hdrsize+payloadBytes_afterPadding)) 
     SLinkRocketTrailer_v3(status, crc, fedObt[0], fedBX[0], totalSize >> SLR_WORD_NUM_BYTES_SHIFT, daqcrc);
 
 

@@ -4,7 +4,7 @@ from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing('python')
 options.register('verbosity',0,mytype=VarParsing.varType.int,
                  info='Tester verbosity: 0 = Base+FED prints / 1 = +Module prints / 2 = +Cell prints')
-options.register('modules','HGCalCommissioning/Calibrations/TB2026/maps/modulelocator_v2.txt',mytype=VarParsing.varType.string,
+options.register('modules','HGCalCommissioning/Calibrations/TB2026/maps/modulelocator_v4.txt',mytype=VarParsing.varType.string,
                  info="Path to module mapper. Absolute, or relative to CMSSW src directory")
 options.register('sicells','Geometry/HGCalMapping/data/CellMaps/WaferCellMapTraces.txt',mytype=VarParsing.varType.string,
                  info="Path to Si cell mapper. Absolute, or relative to CMSSW src directory")
@@ -41,13 +41,13 @@ process.source = cms.Source("PoolSource",
 )
 
 
-#process.out = cms.OutputModule("PoolOutputModule",
-#    fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun.root')
-#)
+process.out = cms.OutputModule("PoolOutputModule",
+    fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun.root')
+)
 
 process.TFileService = cms.Service(
     "TFileService",
-    fileName = cms.string("ADC_individual_module_data_eRun_full.root")
+    fileName = cms.string("ADC_individual_module_data_eRun.root")
 )
 
 process.maxEvents = cms.untracked.PSet(
@@ -64,5 +64,5 @@ process.RawDataBuffer = cms.EDProducer("rawDataProducer_repacked",
 )
 
 process.p = cms.Path(process.RawDataBuffer)
-#process.endPath = cms.EndPath(process.out)
+process.endPath = cms.EndPath(process.out)
 
