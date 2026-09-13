@@ -42,9 +42,9 @@ process.source = cms.Source("PoolSource",
 )
 
 
-process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun.root')
-)
+#process.out = cms.OutputModule("PoolOutputModule",
+#    fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun___.root')
+#)
 
 process.TFileService = cms.Service(
     "TFileService",
@@ -57,7 +57,7 @@ process.maxEvents = cms.untracked.PSet(
 
 )
 
-process.RawDataBuffer = cms.EDProducer("rawDataProducer_repacked",
+process.RawDataBuffer = cms.EDProducer("rawDataProducer_repacked_V1",
    
     hgcalDigis = cms.untracked.InputTag("hgcalDigis","","RAW2DIGI"),
     #econds = cms.untracked.InputTag("hgcalDigis","","RAW2DQM")
@@ -65,5 +65,5 @@ process.RawDataBuffer = cms.EDProducer("rawDataProducer_repacked",
 )
 
 process.p = cms.Path(process.RawDataBuffer)
-process.endPath = cms.EndPath(process.out)
+#process.endPath = cms.EndPath(process.out)
 

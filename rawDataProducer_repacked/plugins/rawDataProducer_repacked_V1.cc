@@ -1,9 +1,15 @@
 // -*- C++ -*-
 //
+//ooooooooooOOOOOOOOOOOOO=====================================================OOOOOOOOOOOOOoooooooooooooooooooooo
+
+//This code is producing Repacked RAW Data keeping the DIGI sequence of the data same (not the RAW data sequence) -> The newer version is rawDataProducer_repacked.cc
+
+//ooooooooooOOOOOOOOOOOOO=====================================================OOOOOOOOOOOOOoooooooooooooooooooooo
+
 // Package:    rawDataProducer_repacked_gen/rawDataProducer_repacked
 // Class:      rawDataProducer_repacked
 //
-/**\class rawDataProducer_repacked rawDataProducer_repacked.cc rawDataProducer_repacked_gen/rawDataProducer_repacked/plugins/rawDataProducer_repacked.cc
+/**\class rawDataProducer_repacked rawDataProducer_repacked_V1.cc rawDataProducer_repacked_gen/rawDataProducer_repacked/plugins/rawDataProducer_repacked_V1.cc
 
  Description: [one line class summary]
 
@@ -77,11 +83,10 @@
 // class declaration
 //
 
-
-class rawDataProducer_repacked : public edm::stream::EDProducer<> {
+class rawDataProducer_repacked_V1 : public edm::stream::EDProducer<> {
 public:
-  explicit rawDataProducer_repacked(const edm::ParameterSet&);
-  ~rawDataProducer_repacked() override;
+  explicit rawDataProducer_repacked_V1(const edm::ParameterSet&);
+  ~rawDataProducer_repacked_V1() override;
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -143,7 +148,7 @@ private:
 //
 // constructors and destructor
 //
-rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iConfig)
+rawDataProducer_repacked_V1::rawDataProducer_repacked_V1(const edm::ParameterSet& iConfig)
 : digisToken_(consumes<hgcaldigi::HGCalDigiHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
     econdInfoTkn_(consumes<hgcaldigi::HGCalECONDPacketInfoHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
     fedInfoTkn_(consumes<hgcaldigi::HGCalFEDPacketInfoHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
@@ -221,7 +226,7 @@ rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iCon
   //now do what ever other initialization is needed
 }
 
-rawDataProducer_repacked::~rawDataProducer_repacked() {
+rawDataProducer_repacked_V1::~rawDataProducer_repacked_V1() {
   // do anything here that needs to be done at destruction time
   // (e.g. close files, deallocate resources etc.)
   //
@@ -233,7 +238,7 @@ rawDataProducer_repacked::~rawDataProducer_repacked() {
 //
 
 // ------------ method called to produce the data  ------------
-void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
+void rawDataProducer_repacked_V1::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   using namespace edm;
   using namespace std;
   
@@ -325,16 +330,11 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
   uint32_t nmodules = moduleIndex.maxModulesCount();
   //cout << "nModules: " << nmodules << endl;
-  std::vector<uint32_t> cbIdx(0), ECONDidx(0);
   for(size_t i = 0; i < nmodules; i++){
-    //auto econdID = moduleInfo_view[i].econdidx();
-    //auto cbID = moduleInfo_view[i].captureblockidx();
-    cbIdx.push_back(moduleInfo_view[i].captureblockidx());
-    ECONDidx.push_back(moduleInfo_view[i].econdidx());
+    auto econdID = moduleInfo_view[i].econdidx();
+    auto cbID = moduleInfo_view[i].captureblockidx();
     //kcout << "ECOND_ID: " << econdID << " CB ID: " << cbID << endl;
   }
-
-  int maxCBidx = *std::max_element(cbIdx.begin(), cbIdx.end());
 
 
 
@@ -367,22 +367,22 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   
   uint16_t modulNum[12] = {0,1,2,3,4,5,6,7,8,9,10,11};
 
-  //std::vector<hgcal::econd::ERxData> allERxData;//(72);
-  //std::vector<hgcal::econd::ERxChannelEnable> enableMaps;//(72, hgcal::econd::ERxChannelEnable(37,false));
-  std::vector<hgcal::econd::ERxData> allERxData(TotalERx);
-  std::vector<hgcal::econd::ERxChannelEnable> enableMaps(TotalERx, hgcal::econd::ERxChannelEnable(37,false));
+  std::vector<hgcal::econd::ERxData> allERxData;//(72);
+  std::vector<hgcal::econd::ERxChannelEnable> enableMaps;//(72, hgcal::econd::ERxChannelEnable(37,false));
+  //std::vector<hgcal::econd::ERxData> allERxData(TotalERx);
+  //std::vector<hgcal::econd::ERxChannelEnable> enableMaps(TotalERx, hgcal::econd::ERxChannelEnable(37,false));
 
   const std::vector<uint8_t> econd_status(12, hgcal::backend::ECONDPacketStatus::Normal); //for CB
 
   for (int32_t i = 0; i < ndenseIndices && digis.isValid(); i++) {
 
-    //uint32_t modInfoIdx(denseIndexInfo_view.modInfoIdx()[i]);
-    //cout << "DIGI idx: " << static_cast<unsigned int>(i) << "  ECOND_ID: " << moduleInfo_view.econdidx()[modInfoIdx] << " CB_ID: " 
-    //    << moduleInfo_view.captureblockidx()[modInfoIdx] << " DigiFlag: " << digis_view.flags()[i] << endl;
-    
-    //if ((digis_view.flags()[i] == hgcal::DIGI_FLAG::NotAvailable)) {
-    //continue;
+    //if((i == 0) or (i/37 != (i-1)/37)){
+    //  moduleIdx.push_back(denseIndexInfo_view.fedReadoutSeq()[i]);
+    //  //cout << " idx: " << moduleIdx.size()-1 << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
     //}
+    if ((digis_view.flags()[i] == hgcal::DIGI_FLAG::NotAvailable)) {
+        continue;
+    }
 
     tctp.push_back(digis_view.tctp()[i]);
     adc.push_back(digis_view.adc()[i]);
@@ -404,65 +404,65 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     isSiPM.push_back((uint8_t) moduleInfo_view.isSiPM()[modInfoIdx]);
     iscalib.push_back(cellInfo_view.iscalib()[cellInfoIdx]);
      
-    //cout << "DIGI idx: " << static_cast<unsigned int>(i) << "  ECOND_ID: " << moduleInfo_view.econdidx()[modInfoIdx] << " CB_ID: " 
-    //    << moduleInfo_view.captureblockidx()[modInfoIdx] << endl;
+    cout << "DIGI idx: " << static_cast<unsigned int>(i) << "  ECOND_ID: " << moduleInfo_view.econdidx()[modInfoIdx] << " CB_ID: " 
+        << moduleInfo_view.captureblockidx()[modInfoIdx] << endl;
 
-   
+    nGoodDigis++;
   
     eRxNum = i / 37;
     chIdx  = denseIndexInfo_view.chNumber()[i] % 37;
     int channel = denseIndexInfo_view.chNumber()[i];
 
-    //if(denseIndexInfo_view.fedReadoutSeq()[i] == modulNum[denseIndexInfo_view.fedReadoutSeq()[i]]){
-//
-    ////if (channel >= 0 && channel < static_cast<int>(h_ADC_channel.size())) {
-    ////    h_ADC_channel[channel]->Fill(digis_view.adc()[i]);
-    ////}
-    //  h_ADC_channel[denseIndexInfo_view.fedReadoutSeq()[i]]->Fill(digis_view.adc()[i]);
-    //}
+    if(denseIndexInfo_view.fedReadoutSeq()[i] == modulNum[denseIndexInfo_view.fedReadoutSeq()[i]]){
 
-    //while (allERxData.size() <= static_cast<size_t>(eRxNum)) {
-    //      //cout << "vecIdx: " << allERxData.size() << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
-    //    hgcal::econd::ERxData erxData;
-    //    erxData.tctp.resize(37, 0);
-    //    erxData.adc.resize(37, 0);
-    //    erxData.adcm.resize(37, 0);
-    //    erxData.toa.resize(37, 0);
-    //    erxData.tot.resize(37, 0);
-    //    allERxData.push_back(std::move(erxData));
-    //    
-    //    //allERxData.emplace_back();
+    //if (channel >= 0 && channel < static_cast<int>(h_ADC_channel.size())) {
+    //    h_ADC_channel[channel]->Fill(digis_view.adc()[i]);
+    //}
+      h_ADC_channel[denseIndexInfo_view.fedReadoutSeq()[i]]->Fill(digis_view.adc()[i]);
+    }
+
+    while (allERxData.size() <= static_cast<size_t>(eRxNum)) {
+          //cout << "vecIdx: " << allERxData.size() << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
+        hgcal::econd::ERxData erxData;
+        erxData.tctp.resize(37, 0);
+        erxData.adc.resize(37, 0);
+        erxData.adcm.resize(37, 0);
+        erxData.toa.resize(37, 0);
+        erxData.tot.resize(37, 0);
+        allERxData.push_back(std::move(erxData));
+        
+        //allERxData.emplace_back();
+        enableMaps.emplace_back(37, false);
+        //moduleIdxCounter++;
+    }
+
+    //if (eRxNum != previousERx) {
+    //    allERxData.emplace_back();
     //    enableMaps.emplace_back(37, false);
-    //    //moduleIdxCounter++;
+//
+    //    previousERx = eRxNum;
     //}
 
+    // Current eRx is the last element
+    //size_t idx = allERxData.size() - 1;
+
+    //cout << i << "  eRxNum: " << i << "/" << 37 << " = " <<  eRxNum << "  chId " << chIdx << "  FilledIdx: " << idx << endl;
+    //cout << i << "  eRxNum: " << eRxNum << " eRxDataSize: " << allERxData.size()  << "  chId " << chIdx << endl;
+    
     //cout << "vecIdx: " << eRxNum << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
-    //enableMaps.at(eRxNum).at(chIdx) = true;
-    //allERxData.at(eRxNum).tctp.at(chIdx) = digis_view.tctp()[i];
-    //allERxData.at(eRxNum).adc.at(chIdx) = digis_view.adc()[i];
-    //allERxData.at(eRxNum).adcm.at(chIdx) = digis_view.adcm1()[i];
-    //allERxData.at(eRxNum).toa.at(chIdx) = digis_view.toa()[i];
-    //allERxData.at(eRxNum).tot.at(chIdx) = digis_view.tot()[i];
+    enableMaps.at(eRxNum).at(chIdx) = true;
+    allERxData.at(eRxNum).tctp.at(chIdx) = digis_view.tctp()[i];
+    allERxData.at(eRxNum).adc.at(chIdx) = digis_view.adc()[i];
+    allERxData.at(eRxNum).adcm.at(chIdx) = digis_view.adcm1()[i];
+    allERxData.at(eRxNum).toa.at(chIdx) = digis_view.toa()[i];
+    allERxData.at(eRxNum).tot.at(chIdx) = digis_view.tot()[i];
     //moduleIdxCounter++;
-    if(digis_view.flags()[i] == hgcal::DIGI_FLAG::NotAvailable){
-      enableMaps.at(eRxNum).at(chIdx) = false;
-      allERxData.at(eRxNum).tctp.push_back(uint8_t(0));
-      allERxData.at(eRxNum).adc.push_back(uint16_t(0));
-      allERxData.at(eRxNum).adcm.push_back(uint16_t(0));
-      allERxData.at(eRxNum).toa.push_back(uint16_t(0));
-      allERxData.at(eRxNum).tot.push_back(uint16_t(0));
-      //allERxData.at(eRxNum).meta.push_back(moduleInfo_view.captureblockidx()[modInfoIdx]);
-    }
-    else{
-      enableMaps.at(eRxNum).at(chIdx) = true;
-      allERxData.at(eRxNum).tctp.push_back(digis_view.tctp()[i]);
-      allERxData.at(eRxNum).adc.push_back(digis_view.adc()[i]);
-      allERxData.at(eRxNum).adcm.push_back(digis_view.adcm1()[i]);
-      allERxData.at(eRxNum).toa.push_back(digis_view.toa()[i]);
-      allERxData.at(eRxNum).tot.push_back(digis_view.tot()[i]);
-      //allERxData.at(eRxNum).meta.push_back(moduleInfo_view.captureblockidx()[modInfoIdx]);
-       nGoodDigis++;
-    }
+    //allERxData[eRxNum].tctp.push_back(digis_view.tctp()[i]);
+    //allERxData[eRxNum].adc.push_back(digis_view.adc()[i]);
+    //allERxData[eRxNum].adcm.push_back(digis_view.adcm1()[i]);
+    //allERxData[eRxNum].toa.push_back(digis_view.toa()[i]);
+    //allERxData[eRxNum].tot.push_back(digis_view.tot()[i]);
+      
     /*cout << std::left
      << std::setw(10) << static_cast<unsigned int>(digis_view.tctp()[i])
      << std::setw(10) << digis_view.adc()[i]
@@ -485,31 +485,27 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     }
     //}
 
-    //if(allERxData.size() != static_cast<size_t>(TotalERx)){
-    //  while (allERxData.size() <= static_cast<size_t>(TotalERx)){
-    //      //cout << "vecIdx: " << allERxData.size() << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
-    //    hgcal::econd::ERxData erxData;
-    //    erxData.tctp.resize(37, 0);
-    //    erxData.adc.resize(37, 0);
-    //    erxData.adcm.resize(37, 0);
-    //    erxData.toa.resize(37, 0);
-    //    erxData.tot.resize(37, 0);
-    //    allERxData.push_back(std::move(erxData));
-    //    
-    //    //allERxData.emplace_back();
-    //    enableMaps.emplace_back(37, false);
-    //    //moduleIdxCounter++;
-    //}
-    //}
+    if(allERxData.size() != static_cast<size_t>(TotalERx)){
+      while (allERxData.size() <= static_cast<size_t>(TotalERx)){
+          //cout << "vecIdx: " << allERxData.size() << " moduleIdx: " << denseIndexInfo_view.fedReadoutSeq()[i] << endl;
+        hgcal::econd::ERxData erxData;
+        erxData.tctp.resize(37, 0);
+        erxData.adc.resize(37, 0);
+        erxData.adcm.resize(37, 0);
+        erxData.toa.resize(37, 0);
+        erxData.tot.resize(37, 0);
+        allERxData.push_back(std::move(erxData));
+        
+        //allERxData.emplace_back();
+        enableMaps.emplace_back(37, false);
+        //moduleIdxCounter++;
+    }
+    }
   
     cout << "nGoodDigis: " << nGoodDigis << endl;
     cout << endl;
 
     nDigis.push_back(nGoodDigis);
-
-
-  //std::vector<std::vector<uint16_t>> CM0;
-  //std::vector<std::vector<uint16_t>> CM1;
 
     int32_t necons = 0;
     if(econdInfo.isValid()){
@@ -533,14 +529,16 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
     //cout << "nEcond = " << imod << "  Payload Length: " << econd.payloadLength() <<  "  BX = " << econd.BX() << "  L1A = " << static_cast<unsigned int>(econd.L1A()) << "  Orbit = " << static_cast<unsigned int>(econd.Orbit()) << endl;
 
-    for(size_t ierx=0; ierx<nErx[imod]; ierx++){
-      
+    for(size_t ierx=0; ierx<6; ierx++){
+      //cmsums[ierx][imod] = econd.cm().coeff(ierx,0) + econd.cm().coeff(ierx,1);
+      //cout << "eRx" << ierx << "  ECOND flag: " << static_cast<unsigned int>(econd.econdFlag()) << "   CM: "  << econd.cm().coeff(ierx,0) << "  " << econd.cm().coeff(ierx,1) << endl;
+      //if(econd.cm().coeff(ierx,0) <= 1024 and econd.cm().coeff(ierx,1) <= 1024){
         cm0.push_back(econd.cm().coeff(ierx,0));
         cm1.push_back(econd.cm().coeff(ierx,1));
-      
+      //}
+
+      //cout << "ierx: " << ierx << "  cm0: " << econd.cm().coeff(ierx,0) << "  cm1: " << econd.cm().coeff(ierx,1) << "  cmSum: " << econd.cm().coeff(ierx,0) + econd.cm().coeff(ierx,1) <<  endl;
     }
-    //CM0.push_back(cm0);
-    //CM1.push_back(cm1);
 
   }
   }
@@ -584,129 +582,6 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
 
 
-  //oooooooooooooOOOOOOOOOOOOOOO For getting the right sequence of DIGIS oooooooooooOOOOOOOOOOOOOOOOOOOO
-
-    struct ECONDGroup {
-      uint32_t econdID;
-      uint32_t cbID;
-      uint32_t eRxNum;
-      uint16_t pLoad;
-      //std::vector<uint16_t> comMode0;
-      //std::vector<uint16_t> comMode1;
-      size_t startIndex;
-    };
-
-    std::vector<ECONDGroup> groups;
-
-    size_t startIndex = 0;
-
-    for (size_t i = 0; i < nErx.size(); ++i) {
-
-        ECONDGroup group;
-
-        group.econdID   = ECONDidx[i];
-        group.cbID      = cbIdx[i];
-        group.eRxNum    = nErx[i];
-        group.pLoad     = payloadLength[i];
-        //group.comMode0 = CM0[i];
-        //group.comMode1 = CM1[i];
-        group.startIndex = startIndex;
-
-        groups.push_back(group);
-
-        startIndex += nErx[i];
-    }
-
-    std::sort(
-        groups.begin(),
-        groups.end(),
-        [](const ECONDGroup& a, const ECONDGroup& b) {
-            return a.econdID < b.econdID;
-        }
-    );
-
-    std::vector<hgcal::econd::ERxData> oldAllErxData = allERxData;
-    std::vector<hgcal::econd::ERxChannelEnable> oldEnableChannel = enableMaps;
-    std::vector<uint16_t> old_cMode0 = cm0;
-    std::vector<uint16_t> old_cMode1 = cm1;
-    //std::vector<uint16_t> old_ploadLength = payloadLength;
-
-    std::vector<uint32_t> newERxNum;
-    std::vector<uint32_t> newECONDid;
-    std::vector<uint32_t> newCaptureBlockID;
-
-    std::vector<hgcal::econd::ERxData> newAllErxData;
-    std::vector<hgcal::econd::ERxChannelEnable> newEnableChMaps;
-    std::vector<uint16_t> new_cMode0;
-    std::vector<uint16_t> new_cMode1;
-    std::vector<uint16_t> new_payloadLength;
-
-    newERxNum.reserve(nErx.size());
-    newECONDid.reserve(ECONDidx.size());
-    newCaptureBlockID.reserve(cbIdx.size());
-    newAllErxData.reserve(allERxData.size());
-    newEnableChMaps.reserve(enableMaps.size());
-    new_cMode0.reserve(cm0.size());
-    new_cMode1.reserve(cm1.size());
-    new_payloadLength.reserve(payloadLength.size());
-
-    for (const auto& group : groups) {
-
-        // Add group information
-        newERxNum.push_back(group.eRxNum);
-        newECONDid.push_back(group.econdID);
-        newCaptureBlockID.push_back(group.cbID);
-        new_payloadLength.push_back(group.pLoad);
-        //new_cMode0.push_back(group.comMode0);
-        //new_cMode1.push_back(group.comMode1);
-
-        // Copy this group's eRx entries
-        for (size_t j = 0; j < group.eRxNum; ++j) {
-
-            newAllErxData.push_back(
-                oldAllErxData[group.startIndex + j]
-            );
-            newEnableChMaps.push_back(oldEnableChannel[group.startIndex + j]);
-
-            new_cMode0.push_back(old_cMode0[group.startIndex + j]);
-            new_cMode1.push_back(old_cMode1[group.startIndex + j]);
-            //new_payloadLength.push_back(old_ploadLength[group.startIndex + j]);
-        }
-    }
-
-    nErx = std::move(newERxNum);
-    ECONDidx = std::move(newECONDid);
-    cbIdx = std::move(newCaptureBlockID);
-    allERxData = std::move(newAllErxData);
-    enableMaps = std::move(newEnableChMaps);
-    cm0 = std::move(new_cMode0);
-    cm1 = std::move(new_cMode1);
-    payloadLength = std::move(new_payloadLength);
-
-    //cout << "TotalErx: " << allERxData.size() << endl;
-    //for(size_t i = 0; i < allERxData.size(); i++){
-    //  cout << "eRxNum: " << i << " CM0: " << cm0[i] << " CM1: " << cm1[i] << endl;
-    //  //cout << "eRxNum: " << nErx[i] << " ECONDidx: " << ECONDidx[i] << " CBidx: " << cbIdx[i] << endl;
-  //
-    //  for(size_t j = 0; j<37; j++){
-    //    cout << "eRx: " << i << " channel: " << j 
-    //     << " ADC = " << allERxData[i].adc[j]
-    //     << " ADCm = " << allERxData[i].adcm[j]
-    //     << " TOA = " << allERxData[i].toa[j]
-    //     << " TOT = " << allERxData[i].tot[j]
-    //     << " TCTP = " << static_cast<unsigned int>(allERxData[i].tctp[j])
-    //     << " channelStat: " << 
-    //     << endl;
-    //    
-    //  } 
-    //  cout << endl;
-    //}
-  //oooooooooOOOOOOOOOOOOOOOOOOOo==================oooooooooooOOOOOOOOOOOOOOOOOOOOO
-
-
-
-
-
 
 
 
@@ -738,173 +613,170 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
   for(size_t erx = 0; erx < allERxData.size(); ++erx){   //looping over all eRx
 
-      bool alleRxPresent = std::all_of(enableMaps[erx].begin(),
-                  enableMaps[erx].end(),
-                  [](bool enabled) { return enabled; });
-      if(alleRxPresent){
-        passThrough = true;
-      }
-      else 
-        passThrough = false;
+    bool alleRxPresent = std::all_of(enableMaps[erx].begin(),
+                enableMaps[erx].end(),
+                [](bool enabled) { return enabled; });
+    if(alleRxPresent){
+      passThrough = true;
+    }
+    else 
+      passThrough = false;
 
-      uint32_t eRxSum = std::accumulate(nErx.begin(), nErx.begin() + moduleNum, uint32_t{0});
-     // cout << "erxid: " << erx << "eRxSum: " << eRxSum << endl;
+    uint32_t eRxSum = std::accumulate(nErx.begin(), nErx.begin() + moduleNum, uint32_t{0});
+    
+    if(erx == 0 or erx == eRxSum){  
+      CRC_calc.clear();
+
+  ///////////////ooooooooooooOOOOOOOOOOOOOOOOO CB Header OOOOOOOOOOOOOOoooooooooooooooooooo////////////////////
+
+    if(ECOND_counter % 2 == 0){ // 2 ECOND per CB
+        std::vector<uint8_t> econd_status(12, hgcal::backend::ECONDPacketStatus::InactiveECOND);
+
+        econd_status[2 * CB_idx]     = hgcal::backend::ECONDPacketStatus::Normal;
+        econd_status[2 * CB_idx + 1] = hgcal::backend::ECONDPacketStatus::Normal;
+
+        uint32_t evt = eventNum;
+        auto cbHeader =
+        hgcal::backend::buildCaptureBlockHeader(
+            cbBX[CB_idx*2],
+            evt,
+            cbOrbit[CB_idx*2],
+            econd_status);
+
+        uint32_t CAPTUREBLOCK_RESERVED_POS = 25;
+        uint32_t CAPTUREBLOCK_RESERVED_MASK = 0x7f;
+        uint32_t value = 0x7f;
+
+        cbHeader[0] &= ~(CAPTUREBLOCK_RESERVED_MASK << CAPTUREBLOCK_RESERVED_POS);
+
+        cbHeader[0] |= ((value & CAPTUREBLOCK_RESERVED_MASK) << CAPTUREBLOCK_RESERVED_POS);
+        econdPacket.push_back(cbHeader[0]);
+        econdPacket.push_back(cbHeader[1]);
+        //ECOND_counter = 0;
+        CB_idx++;
+      }
+
+
+
+      auto econdHeader = hgcal::econd::eventPacketHeader(header,
+                                                              payloadLength[econdIdx], 
+                                                              passThrough,
+                                                              true,
+                                                              ht,
+                                                              ebo,
+                                                              true,
+                                                              false,
+                                                              ehHam,
+                                                              BX[econdIdx],
+                                                              L1A[econdIdx],
+                                                              Orbit[econdIdx],
+                                                              false,
+                                                              rr);
       
-      if(erx == 0 or erx == eRxSum){  
-        //cout << "yes working===============" << endl;
-        CRC_calc.clear();
+      econdHeader[1] |= (econCrc & hgcal::ECOND_FRAME::EHCRC_MASK) << hgcal::ECOND_FRAME::EHCRC_POS;
 
-    ///////////////ooooooooooooOOOOOOOOOOOOOOOOO CB Header OOOOOOOOOOOOOOoooooooooooooooooooo////////////////////
+      //cout << "ECONDCRC: " << std::hex << (econCrc & hgcal::ECOND_FRAME::EHCRC_MASK) << hgcal::ECOND_FRAME::EHCRC_POS << std::dec << endl;
+      //cout << "ECOND header 1: " << std::hex << econdHeader[1] << std::dec << endl;
 
-      //if(ECOND_counter % 2 == 0){ // 2 ECOND per CB
-      if((erx == 0) or (cbIdx[ECOND_counter] != cbIdx[ECOND_counter-1])){
-          std::vector<uint8_t> econd_status(12, hgcal::backend::ECONDPacketStatus::InactiveECOND);
+      econdPacket.push_back(econdHeader[0]);  //filling EcondHeaders
+      econdPacket.push_back(econdHeader[1]);
+      econdIdx++;
+      ECOND_counter++;
+      //eRxSum += nErx[moduleNum];
+      //cout << "eRxSum: " << eRxSum << endl;
+      moduleNum++;
 
-          econd_status[2 * CB_idx]     = hgcal::backend::ECONDPacketStatus::Normal;
-          econd_status[2 * CB_idx + 1] = hgcal::backend::ECONDPacketStatus::Normal;
+      //CRC_calc.push_back(econdHeader[0]);
+      //CRC_calc.push_back(econdHeader[1]);
 
-          uint32_t evt = eventNum;
-          auto cbHeader =
-          hgcal::backend::buildCaptureBlockHeader(
-              cbBX[CB_idx*2],
-              evt,
-              cbOrbit[CB_idx*2],
-              econd_status);
+    }
 
-          uint32_t CAPTUREBLOCK_RESERVED_POS = 25;
-          uint32_t CAPTUREBLOCK_RESERVED_MASK = 0x7f;
-          uint32_t value = 0x7f;
+    bool eRxPresent = std::any_of(
+    enableMaps[erx].begin(),
+    enableMaps[erx].end(),
+    [](bool enabled) { return enabled; }
+    );
 
-          cbHeader[0] &= ~(CAPTUREBLOCK_RESERVED_MASK << CAPTUREBLOCK_RESERVED_POS);
+    // All 37 channels are true
+    
+    if(passThrough == true){
+      //bitE = false;
+      //passThrough = true;
+      const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
+      //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
+      econdPacket.push_back(eRxheader[0]);     //filling ERxHeaders 
+      econdPacket.push_back(eRxheader[1]);
 
-          cbHeader[0] |= ((value & CAPTUREBLOCK_RESERVED_MASK) << CAPTUREBLOCK_RESERVED_POS);
-          econdPacket.push_back(cbHeader[0]);
-          econdPacket.push_back(cbHeader[1]);
-          //ECOND_counter = 0;
-          CB_idx++;
-        }
+      CRC_calc.push_back(eRxheader[0]);      
+      CRC_calc.push_back(eRxheader[1]);
 
-
-
-        auto econdHeader = hgcal::econd::eventPacketHeader(header,
-                                                                payloadLength[econdIdx], 
-                                                                passThrough,
-                                                                true,
-                                                                ht,
-                                                                ebo,
-                                                                true,
-                                                                false,
-                                                                ehHam,
-                                                                BX[econdIdx],
-                                                                L1A[econdIdx],
-                                                                Orbit[econdIdx],
-                                                                false,
-                                                                rr);
-        
-        econdHeader[1] |= (econCrc & hgcal::ECOND_FRAME::EHCRC_MASK) << hgcal::ECOND_FRAME::EHCRC_POS;
-
-        //cout << "ECONDCRC: " << std::hex << (econCrc & hgcal::ECOND_FRAME::EHCRC_MASK) << hgcal::ECOND_FRAME::EHCRC_POS << std::dec << endl;
-        //cout << "ECOND header 1: " << std::hex << econdHeader[1] << std::dec << endl;
-
-        econdPacket.push_back(econdHeader[0]);  //filling EcondHeaders
-        econdPacket.push_back(econdHeader[1]);
-        econdIdx++;
-        ECOND_counter++;
-        //eRxSum += nErx[moduleNum];
-        //cout << "eRxSum: " << eRxSum << endl;
-        moduleNum++;
-
-        //CRC_calc.push_back(econdHeader[0]);
-        //CRC_calc.push_back(econdHeader[1]);
-
+      const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], passZS, passZSm1, hasToA, charMode, passThrough);  //eRx data for each eRX
+      ///int i = 0;
+      //const auto [word, nbits]
+      for(size_t ch = 0; ch < erx_chan_data.size(); ++ch){
+        econdPacket.push_back(erx_chan_data[ch]);   //filling eRx payload(channel data)
+        CRC_calc.push_back(erx_chan_data[ch]);
+//
       }
-
-      bool eRxPresent = std::any_of(
-      enableMaps[erx].begin(),
-      enableMaps[erx].end(),
-      [](bool enabled) { return enabled; }
-      );
-
-      // All 37 channels are true
-
-      if(passThrough == true){
-        //bitE = false;
-        //passThrough = true;
-        const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
-        //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
-        econdPacket.push_back(eRxheader[0]);     //filling ERxHeaders 
-        econdPacket.push_back(eRxheader[1]);
-
-        CRC_calc.push_back(eRxheader[0]);      
-        CRC_calc.push_back(eRxheader[1]);
-
-        const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], passZS, passZSm1, hasToA, charMode, passThrough);  //eRx data for each eRX
-        ///int i = 0;
-        //const auto [word, nbits]
-        for(size_t ch = 0; ch < erx_chan_data.size(); ++ch){
-          econdPacket.push_back(erx_chan_data[ch]);   //filling eRx payload(channel data)
-          CRC_calc.push_back(erx_chan_data[ch]);
-  
-        }
-      }
-      else if (!eRxPresent) {
-          bitE = false;
-          //passThrough = false;
-          const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
-          econdPacket.push_back(eRxheader[0]);   //filling ERxHeaders 
-          CRC_calc.push_back(eRxheader[0]);  
-      } else{
-        //bitE = false;
+    }
+    else if (!eRxPresent) {
+        bitE = false;
         //passThrough = false;
+        const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
+        econdPacket.push_back(eRxheader[0]);   //filling ERxHeaders 
+        CRC_calc.push_back(eRxheader[0]);  
+    } else{
+      //bitE = false;
+      //passThrough = false;
+      
+        const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
+      //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
+      econdPacket.push_back(eRxheader[0]);     //filling ERxHeaders 
+      econdPacket.push_back(eRxheader[1]);
 
-          const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
-          //cout << "cm0: " << cm0[erx] << "  cm1: " << cm1[erx] << endl;
-          econdPacket.push_back(eRxheader[0]);     //filling ERxHeaders 
-          econdPacket.push_back(eRxheader[1]);
+      CRC_calc.push_back(eRxheader[0]);      
+      CRC_calc.push_back(eRxheader[1]);
 
-          CRC_calc.push_back(eRxheader[0]);      
-          CRC_calc.push_back(eRxheader[1]);
-
-          const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], passZS, passZSm1, hasToA, charMode, passThrough);  //eRx data for each eRX
-          ///int i = 0;
-          //const auto [word, nbits]
-          for(size_t ch = 0; ch < erx_chan_data.size(); ++ch){
-            econdPacket.push_back(erx_chan_data[ch]);   //filling eRx payload(channel data)
-            CRC_calc.push_back(erx_chan_data[ch]);
-          
-          }
-        }
-
-  ////// ooooooooooOOOOOOOOOOOOOOOOO CRC Computation (ECOND Tailer) OOOOOOOOOOOOOOoooooooooooooo /////////////////////////
-
-      if(erx+1 == eRxSum){
-        //cout << nextModuleIdx << "  " << currentModuleIdx << "  " << payloadLength[econdIdx-1] << endl;//"   " << std::hex << crc32 << std::dec << endl;
-        crcvec.assign(CRC_calc.begin(), CRC_calc.end());
-        std::transform(crcvec.begin(), crcvec.end(), crcvec.begin(), [](uint32_t w) {
-        return ((w << 24) & 0xFF000000) | ((w << 8) & 0x00FF0000) | ((w >> 8) & 0x0000FF00) |
-              ((w >> 24) & 0x000000FF);  //swapping endianness
-        });
-
-        auto array = &(crcvec[0]);
-        auto bytes = reinterpret_cast<const unsigned char *>(array);
-        auto crc32 = boost::crc<32,
-                             hgcal::ECOND_FRAME::CRC_POL,
-                             hgcal::ECOND_FRAME::CRC_INITREM,
-                             hgcal::ECOND_FRAME::CRC_FINALXOR,
-                             false,
-                             false>(bytes, (payloadLength[econdIdx-1] - 1) * 4);  //need to be checked !!!!!
-
-
-        if((CRC_calc.size() + 1) % 2 != 0){
-          econdPacket.push_back(crc32);
-          econdPacket.push_back(padding);  //padding word
-        }else
-          econdPacket.push_back(crc32);
-
+      const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], passZS, passZSm1, hasToA, charMode, passThrough);  //eRx data for each eRX
+      ///int i = 0;
+      //const auto [word, nbits]
+      for(size_t ch = 0; ch < erx_chan_data.size(); ++ch){
+        econdPacket.push_back(erx_chan_data[ch]);   //filling eRx payload(channel data)
+        CRC_calc.push_back(erx_chan_data[ch]);
+//
       }
+    }
+
+//////// ooooooooooOOOOOOOOOOOOOOOOO CRC Computation (ECOND Tailer) OOOOOOOOOOOOOOoooooooooooooo /////////////////////////
+
+    if(erx+1 == eRxSum){
+      //cout << nextModuleIdx << "  " << currentModuleIdx << "  " << payloadLength[econdIdx-1] << endl;//"   " << std::hex << crc32 << std::dec << endl;
+      crcvec.assign(CRC_calc.begin(), CRC_calc.end());
+      std::transform(crcvec.begin(), crcvec.end(), crcvec.begin(), [](uint32_t w) {
+      return ((w << 24) & 0xFF000000) | ((w << 8) & 0x00FF0000) | ((w >> 8) & 0x0000FF00) |
+            ((w >> 24) & 0x000000FF);  //swapping endianness
+      });
+
+      auto array = &(crcvec[0]);
+      auto bytes = reinterpret_cast<const unsigned char *>(array);
+      auto crc32 = boost::crc<32,
+                           hgcal::ECOND_FRAME::CRC_POL,
+                           hgcal::ECOND_FRAME::CRC_INITREM,
+                           hgcal::ECOND_FRAME::CRC_FINALXOR,
+                           false,
+                           false>(bytes, (payloadLength[econdIdx-1] - 1) * 4);  //need to be checked !!!!!
+
+      
+      if((CRC_calc.size() + 1) % 2 != 0){
+        econdPacket.push_back(crc32);
+        econdPacket.push_back(padding);  //padding word
+      }else
+        econdPacket.push_back(crc32);
 
     }
     
+  }
+
 
 
   //int counterECON = 0;
@@ -1257,12 +1129,12 @@ iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));*/
 }
 
 // ------------ method called once each stream before processing any runs, lumis or events  ------------
-void rawDataProducer_repacked::beginStream(edm::StreamID) {
+void rawDataProducer_repacked_V1::beginStream(edm::StreamID) {
   // please remove this method if not needed
 }
 
 // ------------ method called once each stream after processing all runs, lumis and events  ------------
-void rawDataProducer_repacked::endStream() {
+void rawDataProducer_repacked_V1::endStream() {
   // please remove this method if not needed
 }
 
@@ -1299,7 +1171,7 @@ rawDataBufferProducer::endLuminosityBlock(edm::LuminosityBlock const&, edm::Even
 */
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
-void rawDataProducer_repacked::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+void rawDataProducer_repacked_V1::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   //The following says we do not know what parameters are allowed so do no validation
   // Please change this to state exactly what you do use, even if it is no parameters
   edm::ParameterSetDescription desc;
@@ -1307,9 +1179,9 @@ void rawDataProducer_repacked::fillDescriptions(edm::ConfigurationDescriptions& 
       "hgcalDigis",
       edm::InputTag("hgcalDigis"));
 
-  descriptions.add("rawDataBufferProducer", desc);
+  descriptions.add("rawDataBufferProducer_V1", desc);
 }
 
 
 //define this as a plug-in
-DEFINE_FWK_MODULE(rawDataProducer_repacked);
+DEFINE_FWK_MODULE(rawDataProducer_repacked_V1);
