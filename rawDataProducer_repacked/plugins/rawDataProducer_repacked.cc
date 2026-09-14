@@ -334,19 +334,9 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     //kcout << "ECOND_ID: " << econdID << " CB ID: " << cbID << endl;
   }
 
-  int maxCBidx = *std::max_element(cbIdx.begin(), cbIdx.end());
-
-
-
   std::vector<uint32_t> fed(nmodules), seq(nmodules), nErx(nmodules);
-  //typedef std::pair<std::string, std::vector<uint32_t> > TypeCode2Idx_t;
-  //std::vector<TypeCode2Idx_t> typeCodeTreeIndices;
   uint32_t idx(0);
   for(auto it : moduleIndex.typecodeMap() ) {
-
-      //std::string typecode = it.first;
-      //std::replace( typecode.begin(), typecode.end(), '-', '_');
-      //typeCodeTreeIndices.push_back( TypeCode2Idx_t(typecode, {idx} ) );
 
       fed[idx] = it.second.first;
       seq[idx] = it.second.second;
@@ -357,7 +347,8 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
       //
     }
 
-  
+  int maxCBidx = *std::max_element(cbIdx.begin(), cbIdx.end());
+
   int eRxNum = 0;
   int TotalERx =  std::accumulate(nErx.begin(), nErx.end(), uint32_t{0});
   int chIdx = 0;
@@ -365,7 +356,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   //std::vector<uint16_t> moduleIdx;
   //int moduleIdxCounter = 0;
   
-  uint16_t modulNum[12] = {0,1,2,3,4,5,6,7,8,9,10,11};
+  //uint16_t modulNum[12] = {0,1,2,3,4,5,6,7,8,9,10,11};
 
   //std::vector<hgcal::econd::ERxData> allERxData;//(72);
   //std::vector<hgcal::econd::ERxChannelEnable> enableMaps;//(72, hgcal::econd::ERxChannelEnable(37,false));
@@ -683,31 +674,8 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     cm1 = std::move(new_cMode1);
     payloadLength = std::move(new_payloadLength);
 
-    //cout << "TotalErx: " << allERxData.size() << endl;
-    //for(size_t i = 0; i < allERxData.size(); i++){
-    //  cout << "eRxNum: " << i << " CM0: " << cm0[i] << " CM1: " << cm1[i] << endl;
-    //  //cout << "eRxNum: " << nErx[i] << " ECONDidx: " << ECONDidx[i] << " CBidx: " << cbIdx[i] << endl;
-  //
-    //  for(size_t j = 0; j<37; j++){
-    //    cout << "eRx: " << i << " channel: " << j 
-    //     << " ADC = " << allERxData[i].adc[j]
-    //     << " ADCm = " << allERxData[i].adcm[j]
-    //     << " TOA = " << allERxData[i].toa[j]
-    //     << " TOT = " << allERxData[i].tot[j]
-    //     << " TCTP = " << static_cast<unsigned int>(allERxData[i].tctp[j])
-    //     << " channelStat: " << 
-    //     << endl;
-    //    
-    //  } 
-    //  cout << endl;
-    //}
+  
   //oooooooooOOOOOOOOOOOOOOOOOOOo==================oooooooooooOOOOOOOOOOOOOOOOOOOOO
-
-
-
-
-
-
 
 
   /////////////// eRx payload + header generation   (ECOND packet inside CB) ///////////////
@@ -742,7 +710,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
                   enableMaps[erx].end(),
                   [](bool enabled) { return enabled; });
       if(alleRxPresent){
-        passThrough = true;
+        passThrough = true;     //temporary, need to implement properly
       }
       else 
         passThrough = false;
@@ -751,7 +719,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
      // cout << "erxid: " << erx << "eRxSum: " << eRxSum << endl;
       
       if(erx == 0 or erx == eRxSum){  
-        //cout << "yes working===============" << endl;
+
         CRC_calc.clear();
 
     ///////////////ooooooooooooOOOOOOOOOOOOOOOOO CB Header OOOOOOOOOOOOOOoooooooooooooooooooo////////////////////
@@ -992,16 +960,6 @@ auto st0 = new ((void*)(slinkPacket+hdrsize+payloadBytes_afterPadding))
     SLinkRocketTrailer_v3(status, crc, fedObt[0], fedBX[0], totalSize >> SLR_WORD_NUM_BYTES_SHIFT, daqcrc);
 
 
-
-//const uint32_t* words =
-//    reinterpret_cast<const uint32_t*>(slinkPacket);
-//
-//for (size_t i = 0; i < totalSize/4; ++i) {
-//    std::cout << "Word " << i << " = 0x"
-//              << std::hex << std::setw(8) << std::setfill('0')
-//              << words[i] << std::dec << '\n';
-//}
-
 auto rawDataBuffer = std::make_unique<RawDataBuffer>(totalSize);
 
 rawDataBuffer->addSource(sid, slinkPacket, totalSize);
@@ -1013,245 +971,6 @@ rawDataBuffer->addSource(sid, slinkPacket, totalSize);
 //auto trlView0 = makeSLinkRocketTrailerView(fragData0.dataTrailer(trsize), hdrView0->version());
 
 iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));
-
-
-/*
-  //////// ooooooooooOOOOOOOOOOOOOOOOO CRC Computation (ECOND Tailer) OOOOOOOOOOOOOOoooooooooooooo /////////////////////////
-  int payloadCounter = 0;
-  int payloadLength = 236; //with econdheaders, no trailer
-  std::vector<uint32_t> CRCEcondPacket;
-  std::vector<uint32_t> CRC;
-  std::vector<uint32_t> crcvec;
-  crcvec.clear();
-  for(int i = 0; i < 12; i++){
-    CRCEcondPacket.clear();
-    for(int j = payloadCounter; j < payloadCounter+payloadLength; j++){
-      CRCEcondPacket.push_back(econdPacket[j]);
-      //cout << std::hex << econdPacket[i] << std::dec << endl;
-    }
-    //cout << endl;
-  //uint32_t crc =
-  //  econd_crc32(
-  //      reinterpret_cast<const uint8_t*>(CRCEcondPacket.data() + 2),
-  //      (CRCEcondPacket.size() - 2) * sizeof(uint32_t)
-  //);
-
-
-  crcvec.assign(CRCEcondPacket.begin() + 2, CRCEcondPacket.end());
-  std::transform(crcvec.begin(), crcvec.end(), crcvec.begin(), [](uint32_t w) {
-     return ((w << 24) & 0xFF000000) | ((w << 8) & 0x00FF0000) | ((w >> 8) & 0x0000FF00) |
-            ((w >> 24) & 0x000000FF);  //swapping endianness
-   });
-
-   auto array = &(crcvec[0]);
-   auto bytes = reinterpret_cast<const unsigned char *>(array);
-   auto crc32 = boost::crc<32,
-                           hgcal::ECOND_FRAME::CRC_POL,
-                           hgcal::ECOND_FRAME::CRC_INITREM,
-                           hgcal::ECOND_FRAME::CRC_FINALXOR,
-                           false,
-                           false>(bytes, (235 - 1) * 4);
-
-  CRC.push_back(crc32);
-  //cout << std::hex << crc << std::dec << endl;
-  payloadCounter += payloadLength;
-      
-    }
-
-
-std::vector<uint32_t> econdPacketsWithTrailer;
-constexpr size_t econdPacketLength = 236;   // words, excluding trailer
-size_t packetStart = 0;
-uint32_t paddingWord = 0;
-
-for (size_t i = 0; i < 12; ++i) {
-
-    // Copy one ECON-D packet
-    econdPacketsWithTrailer.insert(
-        econdPacketsWithTrailer.end(),
-        econdPacket.begin() + packetStart,
-        econdPacket.begin() + packetStart + econdPacketLength);
-
-    // Append its trailer
-    econdPacketsWithTrailer.push_back(CRC[i]);
-    //econdPacketsWithTrailer.push_back(crcvec[i]);
-    econdPacketsWithTrailer.push_back(paddingWord);
-
-    packetStart += econdPacketLength;
-
-    //cout << "CRC" << i << ": " << std::hex << CRC[i] << std::dec << endl;
-}
-
-
-
-//int count = 0;
-//for(size_t i = 0; i < econdPacketsWithTrailer.size(); i++){
-//    
-//    if(i%238 == 0){
-//      cout <<  endl;
-//      cout << "Econd " << count << endl;//"   " <<  i << "  " << i%234 << endl;
-//      count++;
-//    }  
-//    cout << "idx: " << i%238 << "  Word: " << std::hex << econdPacketsWithTrailer[i] << std::dec << endl;
-//}
-
-  
-
-
-  //std::vector<std::vector<uint32_t>> erxPayloads(72);
-//
-  //for(int erx = 0; erx < 72; ++erx)
-  //{
-  //    int start = erx * 37;
-//
-  //    erxPayloads[erx].assign(
-  //        allDataWords.begin() + start,
-  //        allDataWords.begin() + start + 37
-  //    );
-  //}
-
-
-  ///////////////ooooooooooooOOOOOOOOOOOOOOOOO CB Header & SLink PAyload OOOOOOOOOOOOOOoooooooooooooooooooo////////////////////
-
-  //uint32_t bx = BX[0];
-  //uint32_t obt = Orbit[0];
-  std::vector<uint32_t> slinkPayload{0};
-  slinkPayload.clear();
-  int counter = 0;
-  int twoEcondlnth = 476;//474;  // data words in 2 econds  (including 2 ECOND header + 235 ECOND payload + 1 Padding word)*2)
-
-  for (unsigned icb = 0; icb < 6; ++icb) {
-
-  std::vector<uint8_t> econd_status(12, hgcal::backend::ECONDPacketStatus::InactiveECOND);
-
-  econd_status[2 * icb]     = hgcal::backend::ECONDPacketStatus::Normal;
-  econd_status[2 * icb + 1] = hgcal::backend::ECONDPacketStatus::Normal;
-
-  uint32_t evt = eventNum;
-
-  auto cbHeader =
-      hgcal::backend::buildCaptureBlockHeader(
-          cbBX[evt-1],
-          evt,
-          cbOrbit[evt-1],
-          econd_status);
-          
-  uint32_t CAPTUREBLOCK_RESERVED_POS = 25;
-  uint32_t CAPTUREBLOCK_RESERVED_MASK = 0x7f;
-  uint32_t value = 0x7f;
-
-  cbHeader[0] &= ~(CAPTUREBLOCK_RESERVED_MASK << CAPTUREBLOCK_RESERVED_POS);
-
-  cbHeader[0] |= ((value & CAPTUREBLOCK_RESERVED_MASK) << CAPTUREBLOCK_RESERVED_POS);
-
-  slinkPayload.push_back(cbHeader[0]);
-  slinkPayload.push_back(cbHeader[1]);
-  
-  slinkPayload.insert(
-    slinkPayload.end(),
-    econdPacketsWithTrailer.begin() + counter,
-    econdPacketsWithTrailer.begin() + counter + twoEcondlnth
-  );
-
-  counter += twoEcondlnth;
- //cout << "cbIdx: " << icb << "  cbHeader0: " << std::hex << cbHeader[0] << "   cbHeader1: " << cbHeader[1] << std::dec << "  cbBX: " << cbBX[0] << 
-  //"  event: " << evt << "  cbOrbit: " << cbOrbit[0] << endl;
-
-  //cout << "cbHeader0: " << std::hex << cbHeader[0]
-  //     << "  " << std::bitset<32>(cbHeader[0]) << ",  cbHeader1: " << cbHeader[1]
-  //     << "  " << std::bitset<32>(cbHeader[1]) << std::dec << endl;
-  //  "  cbBX: " << cbBX[0] << 
-  //    "  event: " << evt << "  cbOrbit: " << cbOrbit[0] <<  endl;
-
-}
-
-//for(size_t i = 0; i < slinkPayload.size(); i++){
-//    cout << "idx: " << i << "  Word: " << std::hex << slinkPayload[i] << std::dec << std::endl;
-//}
-
-
-for (size_t i = 0; i + 1 < slinkPayload.size(); i += 2) {
-    std::swap(slinkPayload[i], slinkPayload[i + 1]);       // To get the correct sequence of the data wwords in the payload as in original raw data
-}
-
-
-/////////////oooooooooooOOOOOOOOOOOO SLink Header OOOOOOOOOOOOOOOOoooooooooooooooo////////////////
-
-size_t payloadBytes = slinkPayload.size() * sizeof(uint32_t);
-size_t totalSize = sizeof(SLinkRocketHeader_v3) + payloadBytes + sizeof(SLinkRocketTrailer_v3);
-uint32_t sid = 1601;
-uint8_t emu_status = 0;
-uint16_t l1a_types = 132;
-uint8_t l1a_phys = 0;
-uint64_t global_event_id = fedL1A[0];//eventNum;
-uint16_t status = 4;
-uint16_t crc = 57005;
-uint16_t daqcrc = 57005;
-
-//unsigned char srcData[totalSize];
-
-constexpr size_t hdrsize = sizeof(SLinkRocketHeader_v3);
-constexpr size_t trsize  = sizeof(SLinkRocketTrailer_v3);
-
-
-unsigned char slinkPacket[totalSize];
-std::memset(slinkPacket, 0, totalSize);
-
-//auto sh0 = new ((void*)slinkPacket.data()) SLinkRocketHeader_v3(sid, l1a_types, l1a_phys, emu_status, global_event_id);  
-auto sh0 = new ((void*)slinkPacket) SLinkRocketHeader_v3(sid, l1a_types, l1a_phys, emu_status, global_event_id);  
-
-//uint64_t Slink_vPos = 52;
-//uint64_t Slink_vMask = 0xf;
-//uint64_t value = 2;
-////
-//auto* words = reinterpret_cast<uint64_t*>(sh0);
-
-//cout << "1 SlinkHeader1: " << std::hex << words[1] << "   " << std::bitset<64>(words[1]) << "  SlinkHeader0: " << words[0] << "   " << std::bitset<64>(words[0]) << std::dec << endl;
-
-//cout << "Size: " << sizeof(*words) << "  " << sizeof(*sh0) << endl;
-//cout << words << "   " << sh0 << endl;
-//words[1] &= ~(Slink_vMask << Slink_vPos);
-//cout << "2 SlinkHeader1: " << std::hex << words[1] << "   " << std::bitset<64>(words[1]) << std::dec << endl;
-//words[1] |= (value << Slink_vPos);
-//
-//cout << "3 SlinkHeader1: " << std::hex << words[1] << "   " << std::bitset<64>(words[1]) << std::dec << endl;
-
-//std::memcpy(
-//    slinkPacket.data() + hdrsize,
-//    slinkPayload.data(),
-//    payloadBytes);
-std::memcpy(
-    slinkPacket + hdrsize,
-    slinkPayload.data(),
-    payloadBytes);
-
-//auto st0 = new ((void*)(slinkPacket.data()+hdrsize+payloadBytes)) 
-//    SLinkRocketTrailer_v3(status, crc, fedObt[global_event_id-1], fedBX[global_event_id-1], totalSize >> SLR_WORD_NUM_BYTES_SHIFT, daqcrc);
-auto st0 = new ((void*)(slinkPacket+hdrsize+payloadBytes)) 
-    SLinkRocketTrailer_v3(status, crc, fedObt[0], fedBX[0], totalSize >> SLR_WORD_NUM_BYTES_SHIFT, daqcrc);
-
-
-
-//const uint32_t* words =
-//    reinterpret_cast<const uint32_t*>(slinkPacket);
-//
-//for (size_t i = 0; i < totalSize/4; ++i) {
-//    std::cout << "Word " << i << " = 0x"
-//              << std::hex << std::setw(8) << std::setfill('0')
-//              << words[i] << std::dec << '\n';
-//}
-
-auto rawDataBuffer = std::make_unique<RawDataBuffer>(totalSize);
-
-rawDataBuffer->addSource(sid, slinkPacket, totalSize);
-
-//auto const& fragData0 = rawDataBuffer->fragmentData(sid);
-//cout << "fragment size = " << fragData0.size() << endl;
-//assert(fragData0.size());
-//auto hdrView0 = makeSLinkRocketHeaderView(fragData0.dataHeader(hdrsize));
-//auto trlView0 = makeSLinkRocketTrailerView(fragData0.dataTrailer(trsize), hdrView0->version());
-
-iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));*/
 
 
 }

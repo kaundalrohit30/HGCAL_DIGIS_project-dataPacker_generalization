@@ -43,7 +43,7 @@ process.source = cms.Source("PoolSource",
 
 
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun.root')
+    fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun_full.root')
 )
 
 process.TFileService = cms.Service(
@@ -52,7 +52,7 @@ process.TFileService = cms.Service(
 )
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(1)
+    input = cms.untracked.int32(-1)
     
 
 )
