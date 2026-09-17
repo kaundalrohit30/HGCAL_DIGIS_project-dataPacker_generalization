@@ -55,7 +55,6 @@ process.source = cms.Source("PoolSource",
 
 process.out = cms.OutputModule("PoolOutputModule",
     fileName = cms.untracked.string('testRawDataBuffer_repacked_pedestalRun_full.root')
-    #fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun_full_manual_passThrough.root')
 )
 
 #process.TFileService = cms.Service(
@@ -69,7 +68,7 @@ process.maxEvents = cms.untracked.PSet(
 
 )
 
-process.RawDataBuffer = cms.EDProducer("rawDataProducer_repacked",
+process.RawDataBuffer = cms.EDProducer("rawDataProducer_repacked_v2",
    
     hgcalDigis = cms.untracked.InputTag("hgcalDigis","","RAW2DIGI"),
     #hgcalDigis = cms.untracked.InputTag("hgcalDigis","","RAW2DQM"),

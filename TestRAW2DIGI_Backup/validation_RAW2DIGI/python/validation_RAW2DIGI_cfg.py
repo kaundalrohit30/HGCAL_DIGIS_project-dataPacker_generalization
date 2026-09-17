@@ -128,16 +128,17 @@ process.maxEvents = cms.untracked.PSet(input=cms.untracked.int32(options.maxEven
 process.source = cms.Source(
     "PoolSource",
     fileNames = cms.untracked.vstring(
-        "file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/testRawDataBuffer_repacked_eRun_full.root"#RAW2DIGI_110723_1.root"
+        #"file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/testRawDataBuffer_repacked_pedestalRun_full.root"#RAW2DIGI_110723_1.root"
+        "file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/testRawDataBuffer_repacked_eRun_full_manual_passThrough.root"#RAW2DIGI_110723_1.root"
     )
 )
 
-#process.TFileService = cms.Service(
-#    "TFileService",
-#    fileName = cms.string("original_DIGIs_after_unpacking_eRun.root")
-#)
+process.TFileService = cms.Service(
+    "TFileService",
+    fileName = cms.string("tmp_DIGIS_difference_electronRun_full_nw1.root")
+)
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(5)
+    input = cms.untracked.int32(-1)
 )
 
 #process.source = cms.Source(
@@ -187,10 +188,10 @@ process.hgcalConfigESProducer = cms.ESSource( # ESProducer to load configuration
 # RAW -> DIGI producer
 # https://github.com/CMS-HGCAL/cmssw/blob/dev/hackathon_base_CMSSW_14_1_X/EventFilter/HGCalRawToDigi/plugins/HGCalRawToDigi.cc
 #print(">>> Prepare RAW -> DIGI...")
-process.testHGCalRawToDigi = cms.EDProducer( # EDProducer to load configurations for unpacker
-  'testRAW2DIGI',
-  src=cms.InputTag('rawDataCollector'),
-  #src=cms.InputTag('RawDataBuffer'),
+process.testHGCalRawToDigi = cms.EDAnalyzer( # EDProducer to load configurations for unpacker
+  'validation_RAW2DIGI',
+  src1=cms.InputTag('rawDataCollector'),
+  src2=cms.InputTag('RawDataBuffer'),
   fedIds=cms.vuint32(*options.fedId),
 )
 

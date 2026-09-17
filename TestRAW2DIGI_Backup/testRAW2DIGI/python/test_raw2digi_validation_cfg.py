@@ -128,7 +128,7 @@ process.maxEvents = cms.untracked.PSet(input=cms.untracked.int32(options.maxEven
 process.source = cms.Source(
     "PoolSource",
     fileNames = cms.untracked.vstring(
-        "file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/testRawDataBuffer_repacked_eRun_full.root"#RAW2DIGI_110723_1.root"
+        "file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/testRawDataBuffer_repacked_pedestalRun_full.root"#RAW2DIGI_110723_1.root"
     )
 )
 
@@ -188,9 +188,9 @@ process.hgcalConfigESProducer = cms.ESSource( # ESProducer to load configuration
 # https://github.com/CMS-HGCAL/cmssw/blob/dev/hackathon_base_CMSSW_14_1_X/EventFilter/HGCalRawToDigi/plugins/HGCalRawToDigi.cc
 #print(">>> Prepare RAW -> DIGI...")
 process.testHGCalRawToDigi = cms.EDProducer( # EDProducer to load configurations for unpacker
-  'testRAW2DIGI',
-  src=cms.InputTag('rawDataCollector'),
-  #src=cms.InputTag('RawDataBuffer'),
+  'testRAW2DIGI_validation',
+  src1=cms.InputTag('rawDataCollector'),
+  src2=cms.InputTag('RawDataBuffer'),
   fedIds=cms.vuint32(*options.fedId),
 )
 

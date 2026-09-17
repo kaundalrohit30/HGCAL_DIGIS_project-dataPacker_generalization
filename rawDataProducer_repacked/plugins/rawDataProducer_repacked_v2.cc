@@ -78,10 +78,10 @@
 //
 
 
-class rawDataProducer_repacked : public edm::stream::EDProducer<> {
+class rawDataProducer_repacked_v2 : public edm::stream::EDProducer<> {
 public:
-  explicit rawDataProducer_repacked(const edm::ParameterSet&);
-  ~rawDataProducer_repacked() override;
+  explicit rawDataProducer_repacked_v2(const edm::ParameterSet&);
+  ~rawDataProducer_repacked_v2() override;
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -143,7 +143,7 @@ private:
 //
 // constructors and destructor
 //
-rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iConfig)
+rawDataProducer_repacked_v2::rawDataProducer_repacked_v2(const edm::ParameterSet& iConfig)
 : digisToken_(consumes<hgcaldigi::HGCalDigiHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
     econdInfoTkn_(consumes<hgcaldigi::HGCalECONDPacketInfoHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
     fedInfoTkn_(consumes<hgcaldigi::HGCalFEDPacketInfoHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
@@ -221,7 +221,7 @@ rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iCon
   //now do what ever other initialization is needed
 }
 
-rawDataProducer_repacked::~rawDataProducer_repacked() {
+rawDataProducer_repacked_v2::~rawDataProducer_repacked_v2() {
   // do anything here that needs to be done at destruction time
   // (e.g. close files, deallocate resources etc.)
   //
@@ -233,7 +233,7 @@ rawDataProducer_repacked::~rawDataProducer_repacked() {
 //
 
 // ------------ method called to produce the data  ------------
-void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
+void rawDataProducer_repacked_v2::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   using namespace edm;
   using namespace std;
   
@@ -559,7 +559,6 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     //  }
     //}
 
-
   tree->Fill();
   ///////////oooooooooooOOOOOOOOOOOOO FED Info OOOOOOOOOOOOOOOoooooooooooooooooo////////////////////
   int32_t nfed = 0;
@@ -692,9 +691,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   econdPacket.clear();
   int econdIdx = 0;
   uint16_t header =  340;//170;
-  bool passThrough;
-  //bool passThrough1 = false;
-  std::vector<bool> passThrough1{false, false, false,false,false,false,false,false,false,true,false,false,};
+  bool passThrough = false;
   uint8_t ht = 0;
   uint8_t ebo = 0;
   uint8_t ehHam = 9;
@@ -703,7 +700,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   uint8_t Ham = 0;
   bool bitE = true;
   bool passZS = true;
-  bool passZSm1 = true; 
+  bool passZSm1 = false;//true; 
   bool hasToA = false;
   bool charMode = false;
   uint8_t econCrc = 244;
@@ -767,8 +764,6 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
         //cout << "PayloadLengthOriginal: " << payloadLength[econdIdx] << " PayloadLengthCal: " << econdPayloadCheck.size() << endl;
         //cout << endl;
         //cout << "========================== ECOND ID " << econdIdx << " ===============================" << endl; 
-        passThrough = passThrough1[econdIdx];
-        //passThrough = passThrough1;
 
         auto econdHeader = hgcal::econd::eventPacketHeader(header,
                                                                 payloadLength[econdIdx], 
@@ -815,7 +810,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
 
       // All 37 channels are true
 
-      /*if(passThrough[econdIdx-1] == true){
+      if(passThrough == true){
         //bitE = false;
         //passThrough = true;
         const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
@@ -839,8 +834,8 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
           //econdPayloadCheck.push_back(erx_chan_data[ch]);
   
         }
-      }*/
-      if (!eRxPresent) {
+      }
+      else if (!eRxPresent) {
           bitE = false;
           //passThrough = false;
           const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
@@ -1011,12 +1006,12 @@ iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));
 }
 
 // ------------ method called once each stream before processing any runs, lumis or events  ------------
-void rawDataProducer_repacked::beginStream(edm::StreamID) {
+void rawDataProducer_repacked_v2::beginStream(edm::StreamID) {
   // please remove this method if not needed
 }
 
 // ------------ method called once each stream after processing all runs, lumis and events  ------------
-void rawDataProducer_repacked::endStream() {
+void rawDataProducer_repacked_v2::endStream() {
   // please remove this method if not needed
 }
 
@@ -1053,7 +1048,7 @@ rawDataBufferProducer::endLuminosityBlock(edm::LuminosityBlock const&, edm::Even
 */
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
-void rawDataProducer_repacked::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+void rawDataProducer_repacked_v2::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   //The following says we do not know what parameters are allowed so do no validation
   // Please change this to state exactly what you do use, even if it is no parameters
   edm::ParameterSetDescription desc;
@@ -1061,9 +1056,9 @@ void rawDataProducer_repacked::fillDescriptions(edm::ConfigurationDescriptions& 
       "hgcalDigis",
       edm::InputTag("hgcalDigis"));
 
-  descriptions.add("rawDataBufferProducer", desc);
+  descriptions.add("rawDataBufferProducer_v2", desc);
 }
 
 
 //define this as a plug-in
-DEFINE_FWK_MODULE(rawDataProducer_repacked);
+DEFINE_FWK_MODULE(rawDataProducer_repacked_v2);

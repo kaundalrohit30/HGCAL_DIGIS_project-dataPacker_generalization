@@ -1,0 +1,11 @@
+<use name="DataFormats/FEDRawData"/>
+<use name="FWCore/Framework"/>
+<use name="FWCore/ParameterSet"/>
+<use name="FWCore/PluginManager"/>
+<use name="FWCore/Utilities"/>
+
+<use name="CommonTools/UtilAlgos"/>
+<use name="FWCore/ServiceRegistry"/>
+<use name="root"/>
+<use name="rootcore"/>
+<flags EDM_PLUGIN="1"/>

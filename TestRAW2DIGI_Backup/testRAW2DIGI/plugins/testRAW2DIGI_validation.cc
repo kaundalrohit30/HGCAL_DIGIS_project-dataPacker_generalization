@@ -53,10 +53,10 @@
 // class declaration
 //
 
-class testRAW2DIGI : public edm::stream::EDProducer<> {
+class testRAW2DIGI_validation : public edm::stream::EDProducer<> {
 public:
-  explicit testRAW2DIGI(const edm::ParameterSet&);
-  ~testRAW2DIGI() override;
+  explicit testRAW2DIGI_validation(const edm::ParameterSet&);
+  ~testRAW2DIGI_validation() override;
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -72,7 +72,8 @@ private:
 
   // ----------member data ---------------------------
   // input tokens
-  const edm::EDGetTokenT<RawDataBuffer> fedRawToken_;
+  const edm::EDGetTokenT<RawDataBuffer> fedRawTokenOrg_;
+  const edm::EDGetTokenT<RawDataBuffer> fedRawTokenRpc_;
 
   // output tokens
   //const edm::EDPutTokenT<hgcaldigi::HGCalDigiHost> digisToken_;
@@ -111,8 +112,9 @@ private:
 //
 // constructors and destructor
 //
-testRAW2DIGI::testRAW2DIGI(const edm::ParameterSet& iConfig)
-  : fedRawToken_(consumes<RawDataBuffer>(iConfig.getParameter<edm::InputTag>("src"))),
+testRAW2DIGI_validation::testRAW2DIGI_validation(const edm::ParameterSet& iConfig)
+  : fedRawTokenOrg_(consumes<RawDataBuffer>(iConfig.getParameter<edm::InputTag>("src1"))),
+    fedRawTokenRpc_(consumes<RawDataBuffer>(iConfig.getParameter<edm::InputTag>("src2"))),
       //digisToken_(produces<hgcaldigi::HGCalDigiHost>()),
       //econdPacketInfoToken_(produces<hgcaldigi::HGCalECONDPacketInfoHost>()),
       //fedPacketInfoToken_(produces<hgcaldigi::HGCalFEDPacketInfoHost>()),
@@ -131,14 +133,14 @@ testRAW2DIGI::testRAW2DIGI(const edm::ParameterSet& iConfig)
 
 
 
-testRAW2DIGI::~testRAW2DIGI() {
+testRAW2DIGI_validation::~testRAW2DIGI_validation() {
   // do anything here that needs to be done at destruction time
   // (e.g. close files, deallocate resources etc.)
   //
   // please remove this method altogether if it would be left empty
 }
 
-void testRAW2DIGI::beginRun(edm::Run const& iRun, edm::EventSetup const& iSetup) {
+void testRAW2DIGI_validation::beginRun(edm::Run const& iRun, edm::EventSetup const& iSetup) {
   if (mapWatcher_.check(iSetup)) {
     moduleIndexer_ = iSetup.getData(moduleIndexToken_);
     cellIndexer_ = iSetup.getData(cellIndexToken_);
@@ -146,7 +148,7 @@ void testRAW2DIGI::beginRun(edm::Run const& iRun, edm::EventSetup const& iSetup)
   }
 }
 
-void testRAW2DIGI::endRun(edm::Run const& iRun, edm::EventSetup const& iSetup) {
+void testRAW2DIGI_validation::endRun(edm::Run const& iRun, edm::EventSetup const& iSetup) {
   std::cout << ">>> TestHGCalRawToDigi::endRun: " << std::endl;
   std::cout << "  Dense indices  |  ADC averaged over channels" << std::endl;
   std::cout << "  fed econd  eRx |";
@@ -174,7 +176,7 @@ void testRAW2DIGI::endRun(edm::Run const& iRun, edm::EventSetup const& iSetup) {
 
 
 // ------------ method called to produce the data  ------------
-void testRAW2DIGI::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
+void testRAW2DIGI_validation::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   using namespace edm;
   std::cout << ">>> TestHGCalRawToDigi: Event " << iEvent.id()
             << " ========================================================================================" << std::endl;
@@ -184,7 +186,7 @@ void testRAW2DIGI::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   
   // CREATE DIGIs
   // std::cout << "Created DIGIs SOA with " << digis.view().metadata().size() << " entries" << std::endl;
-  const auto& fedBuffer = iEvent.get(fedRawToken_);
+  const auto& fedBuffer = iEvent.get(fedRawTokenOrg_);
   //for (unsigned fedId = 0; fedId < moduleIndexer_.fedCount(); ++fedId) {
     //std::cout << "fed loop index = " << fedId << std::endl;
     //std::cout << "moduleIndexer_.fedCount() = " << moduleIndexer_.fedCount() << std::endl;
@@ -256,13 +258,14 @@ void testRAW2DIGI::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
 
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
-void testRAW2DIGI::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+void testRAW2DIGI_validation::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   edm::ParameterSetDescription desc;
-  desc.add<edm::InputTag>("src", edm::InputTag("rawDataCollector"));
+  desc.add<edm::InputTag>("src1", edm::InputTag("rawDataCollector"));
+  desc.add<edm::InputTag>("src2", edm::InputTag("RawDataBuffer"));
   desc.add<std::vector<unsigned int> >("fedIds", {});
-  descriptions.add("HGCalDigis", desc);
+  descriptions.add("HGCalDigis_validation", desc);
 
 }
 
 //define this as a plug-in
-DEFINE_FWK_MODULE(testRAW2DIGI);
+DEFINE_FWK_MODULE(testRAW2DIGI_validation);
