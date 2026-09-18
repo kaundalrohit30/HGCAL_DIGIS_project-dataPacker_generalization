@@ -46,22 +46,22 @@ process = customise_hgcalmapper(process, **kwargs)
 # Input file
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-        #"file:RAW2DIGI_electronRun.root"
-        "file:RAW2DIGI_pedestalRun.root"
+        "file:RAW2DIGI_electronRun.root"
+        #"file:RAW2DIGI_pedestalRun.root"
         #"file:RAW2DIGI_110723_1.root"
     )
 )
 
 
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('testRawDataBuffer_repacked_pedestalRun_full.root')
+    fileName = cms.untracked.string('test_repacked_eRun___.root')
     #fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun_full_manual_passThrough.root')
 )
 
-#process.TFileService = cms.Service(
-#    "TFileService",
-#    fileName = cms.string("ADC_individual_module_data_eRun.root")
-#)
+process.TFileService = cms.Service(
+    "TFileService",
+    fileName = cms.string("Digis_data_eRun_full_GdChannels_debug.root")
+)
 
 process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(-1)

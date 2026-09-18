@@ -375,6 +375,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     //continue;
     //}
 
+    if(digis_view.flags()[i] != hgcal::DIGI_FLAG::NotAvailable){
     tctp.push_back(digis_view.tctp()[i]);
     adc.push_back(digis_view.adc()[i]);
     adcm1.push_back(digis_view.adcm1()[i]);
@@ -394,7 +395,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     modI2.push_back(moduleInfo_view.i2()[modInfoIdx]); 
     isSiPM.push_back((uint8_t) moduleInfo_view.isSiPM()[modInfoIdx]);
     iscalib.push_back(cellInfo_view.iscalib()[cellInfoIdx]);
-     
+    }
     //cout << "DIGI idx: " << static_cast<unsigned int>(i) << "  ECOND_ID: " << moduleInfo_view.econdidx()[modInfoIdx] << " CB_ID: " 
     //    << moduleInfo_view.captureblockidx()[modInfoIdx] << endl;
 
