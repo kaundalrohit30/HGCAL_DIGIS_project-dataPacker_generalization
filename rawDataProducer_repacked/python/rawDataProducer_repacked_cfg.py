@@ -48,19 +48,19 @@ process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
         "file:RAW2DIGI_electronRun.root"
         #"file:RAW2DIGI_pedestalRun.root"
-        #"file:RAW2DIGI_110723_1.root"
+        #"file:RAW2DIGI_fixedADCRun_117489.root"
     )
 )
 
 
 process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('test_repacked_eRun___.root')
+    fileName = cms.untracked.string('test_RawDataBuffer_eRun_cbH_mod.root')
     #fileName = cms.untracked.string('testRawDataBuffer_repacked_eRun_full_manual_passThrough.root')
 )
 
 process.TFileService = cms.Service(
     "TFileService",
-    fileName = cms.string("Digis_data_eRun_full_GdChannels_debug.root")
+    fileName = cms.string("test_out.root")
 )
 
 process.maxEvents = cms.untracked.PSet(

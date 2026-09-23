@@ -77,6 +77,11 @@
 // class declaration
 //
 
+uint16_t compressToT(uint16_t totraw) {
+    if (totraw > 0x1ff)
+      return (0x200 | (totraw >> 3));
+    return (totraw & 0x1ff);
+  }
 
 class rawDataProducer_repacked : public edm::stream::EDProducer<> {
 public:
@@ -375,11 +380,13 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     //continue;
     //}
 
+    //uint16_t TOT = digis_view.tot()[i];
+
     if(digis_view.flags()[i] != hgcal::DIGI_FLAG::NotAvailable){
     tctp.push_back(digis_view.tctp()[i]);
     adc.push_back(digis_view.adc()[i]);
     adcm1.push_back(digis_view.adcm1()[i]);
-    tot.push_back(digis_view.tot()[i]);
+    tot.push_back(compressToT(digis_view.tot()[i]));
     toa.push_back(digis_view.toa()[i]);
     cm.push_back(digis_view.cm()[i]);
     flags.push_back(digis_view.flags()[i]);
@@ -395,6 +402,31 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     modI2.push_back(moduleInfo_view.i2()[modInfoIdx]); 
     isSiPM.push_back((uint8_t) moduleInfo_view.isSiPM()[modInfoIdx]);
     iscalib.push_back(cellInfo_view.iscalib()[cellInfoIdx]);
+
+    //if(denseIndexInfo_view.fedReadoutSeq()[i] == 9 and compressToT(digis_view.tot()[i]) > 0){
+    /*cout << std::left
+     << std::setw(10) << static_cast<unsigned int>(digis_view.tctp()[i])
+     << std::setw(10) << digis_view.adc()[i]
+     << std::setw(10) << digis_view.adcm1()[i]
+     << std::setw(10) << compressToT(digis_view.tot()[i])
+     << std::setw(10) << digis_view.toa()[i]
+     << std::setw(10) << digis_view.cm()[i]
+     << std::setw(10) << digis_view.flags()[i]
+     << std::setw(10) << denseIndexInfo_view.chNumber()[i]
+     << std::setw(10) << denseIndexInfo_view.fedId()[i]
+     << std::setw(15) << denseIndexInfo_view.fedReadoutSeq()[i]
+     << std::setw(20) << cellInfo_view.i1()[cellInfoIdx]
+     << std::setw(20) << cellInfo_view.i2()[cellInfoIdx]
+     << std::setw(15) << moduleInfo_view.i1()[modInfoIdx]
+     << std::setw(15) << moduleInfo_view.i2()[modInfoIdx]
+     << std::setw(15) << cellInfo_view.t()[cellInfoIdx]
+     << std::setw(15) << moduleInfo_view.isSiPM()[modInfoIdx]
+     << std::setw(15) << cellInfo_view.iscalib()[cellInfoIdx]
+     << '\n';  */
+    //}
+
+
+
     }
     //cout << "DIGI idx: " << static_cast<unsigned int>(i) << "  ECOND_ID: " << moduleInfo_view.econdidx()[modInfoIdx] << " CB_ID: " 
     //    << moduleInfo_view.captureblockidx()[modInfoIdx] << endl;
@@ -451,34 +483,16 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
       allERxData.at(eRxNum).adc.push_back(digis_view.adc()[i]);
       allERxData.at(eRxNum).adcm.push_back(digis_view.adcm1()[i]);
       allERxData.at(eRxNum).toa.push_back(digis_view.toa()[i]);
-      allERxData.at(eRxNum).tot.push_back(digis_view.tot()[i]);
+      allERxData.at(eRxNum).tot.push_back(compressToT(digis_view.tot()[i]));
       //allERxData.at(eRxNum).meta.push_back(moduleInfo_view.captureblockidx()[modInfoIdx]);
        nGoodDigis++;
     }
 
-    if ((digis_view.flags()[i] == hgcal::DIGI_FLAG::NotAvailable)) {
-    continue;
-    }
+    //if ((digis_view.flags()[i] == hgcal::DIGI_FLAG::NotAvailable)) {
+    //continue;
+    //}
 
-   /* cout << std::left
-     << std::setw(10) << static_cast<unsigned int>(digis_view.tctp()[i])
-     << std::setw(10) << digis_view.adc()[i]
-     << std::setw(10) << digis_view.adcm1()[i]
-     << std::setw(10) << digis_view.tot()[i]
-     << std::setw(10) << digis_view.toa()[i]
-     << std::setw(10) << digis_view.cm()[i]
-     << std::setw(10) << digis_view.flags()[i]
-     << std::setw(10) << denseIndexInfo_view.chNumber()[i]
-     << std::setw(10) << denseIndexInfo_view.fedId()[i]
-     << std::setw(15) << denseIndexInfo_view.fedReadoutSeq()[i]
-     << std::setw(20) << cellInfo_view.i1()[cellInfoIdx]
-     << std::setw(20) << cellInfo_view.i2()[cellInfoIdx]
-     << std::setw(15) << moduleInfo_view.i1()[modInfoIdx]
-     << std::setw(15) << moduleInfo_view.i2()[modInfoIdx]
-     << std::setw(15) << cellInfo_view.t()[cellInfoIdx]
-     << std::setw(15) << moduleInfo_view.isSiPM()[modInfoIdx]
-     << std::setw(15) << cellInfo_view.iscalib()[cellInfoIdx]
-     << '\n';  */
+    
     }
     //}
 
@@ -704,7 +718,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   uint8_t Ham = 0;
   bool bitE = true;
   bool passZS = true;
-  bool passZSm1 = true; 
+  bool passZSm1 = true;
   bool hasToA = false;
   bool charMode = false;
   uint8_t econCrc = 244;
@@ -741,8 +755,10 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
       if((erx == 0) or (cbIdx[ECOND_counter] != cbIdx[ECOND_counter-1])){
           std::vector<uint8_t> econd_status(12, hgcal::backend::ECONDPacketStatus::InactiveECOND);
 
-          econd_status[2 * CB_idx]     = hgcal::backend::ECONDPacketStatus::Normal;
-          econd_status[2 * CB_idx + 1] = hgcal::backend::ECONDPacketStatus::Normal;
+          econd_status[0]     = hgcal::backend::ECONDPacketStatus::Normal;
+          econd_status[1]     = hgcal::backend::ECONDPacketStatus::Normal;
+          //econd_status[2 * CB_idx]     = hgcal::backend::ECONDPacketStatus::Normal;
+          //econd_status[2 * CB_idx + 1] = hgcal::backend::ECONDPacketStatus::Normal;
 
           uint32_t evt = eventNum;
           auto cbHeader =

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// use cmsRun rawDataDump_cfg.py fedId=1601 maxEvents=-1 to run
+// use cmsRun rawDataDump_V2_cfg.py fedId=1601 maxEvents=-1 to run
 // Package:    rawDataProducer_repacked_gen/rawDataDumpAnlzr
 // Class:      rawDataDumpAnlzr
 //
@@ -99,8 +99,11 @@ TH1D *CRC_diff;
 TH1D *EvtNum;
 TH1D *ECOND_id;
 TH2D *ECOND_v_CRC_diff;
+TH1D *h_payloadLength_org;
+TH1D *h_payloadLength_rpc;
 
 size_t evtCtr = 0;
+int evtctr = 0;
 
 #ifdef THIS_IS_AN_EVENTSETUP_EXAMPLE
   edm::ESGetToken<SetupData, SetupRecord> setupToken_;
@@ -131,7 +134,8 @@ rawDataDumpAnlzr_V2::rawDataDumpAnlzr_V2(const edm::ParameterSet& iConfig)
   EvtNum = fs->make<TH1D>("EvtNum", "Events having different CRC;Event number;Counts", 10000, 0, 10000);
   ECOND_id = fs->make<TH1D>("ECOND_ID", "ECOND ID having different CRC;ECOND ID;Counts", 12, 0, 12);
   ECOND_v_CRC_diff = fs->make<TH2D>("ECOND_vs_CRCdiff", "ECOND ID vs CRC difference;ECOND ID;CRC_diff", 12, 0, 12, 2, 0, 2);
-
+  h_payloadLength_org = fs->make<TH1D>("PayloadLength_Org", "PayloadLength Org;Payload length;Counts", 250, 0, 250);
+  h_payloadLength_rpc = fs->make<TH1D>("PayloadLength_Rpc", "PayloadLength Rpc;Payload length;Counts", 250, 0, 250);
 
 #ifdef THIS_IS_AN_EVENTSETUP_EXAMPLE
   setupDataToken_ = esConsumes<SetupData, SetupRecord>();
@@ -162,7 +166,7 @@ void rawDataDumpAnlzr_V2::analyze(const edm::Event& iEvent, const edm::EventSetu
   iEvent.getByToken(phase2_token_, rawdata2);
   iEvent.getByToken(phase3_token_, rawdata3);
 
-  uint64_t econdHeader, econdHeaderPos, econdHeaderMask, econdPayloadPos, econdPayloadMask, econdHeaderMarker, econdPayloadLength, econdTrailer;
+  uint64_t econdHeader, econdHeaderPos, econdHeaderMask, econdPayloadPos, econdPayloadMask, econdHeaderMarker, nextEcondHeaderMarker, econdPayloadLength, econdTrailer, eRxHeaderStat, eRxHeaderStatMask;
   std::vector<uint64_t> originalCRC, repackedCRC;
   std::vector<uint64_t> originalDataWord, repackedDataWord;
   std::vector<uint32_t> badPayloadLength_re, badPayloadLength_org; 
@@ -201,7 +205,8 @@ void rawDataDumpAnlzr_V2::analyze(const edm::Event& iEvent, const edm::EventSetu
       cout << std::hex << std::setfill('0');
       size_t step1 = 1;
       //for (unsigned int i = 0; i < size / sizeof(uint64_t); i+=step1) {
-      for (size_t i = 0; i < size / sizeof(uint64_t); i++) {
+      //cout << "===============oooooooOOOOOOOOOOOOOOOOO Event number: " << eventNum << " OOOOOOOOOOOOOOOOOoooooooooooooooo===================" << endl;
+      for (size_t i = 0; i < size / sizeof(uint64_t); i+=step1) {
         //cout << std::setw(4) << i << "  " << std::setw(8) << payload[i] << " WordSize: " << sizeof(payload[i]) << '\n';
         econdHeader = 0x154; //340;
         econdHeaderPos = 55;
@@ -210,25 +215,38 @@ void rawDataDumpAnlzr_V2::analyze(const edm::Event& iEvent, const edm::EventSetu
         econdPayloadMask = 0x1ff;
         
         econdHeaderMarker = ((payload[i] >> econdHeaderPos) & econdHeaderMask);
+        econdPayloadLength = ((payload[i] >> econdPayloadPos) & econdPayloadMask);
+        //eRxHeaderStat = ((payload[i+1] >> 58) & 0x3F);
 
-        if(econdHeaderMarker == econdHeader){
+        //nextEcondHeaderMarker = ();
+
+        if(econdHeaderMarker == econdHeader){//} and eRxHeaderStat == 0x38){
           //cout << econdHeaderMarker << endl;
-          econdPayloadLength = ((payload[i] >> econdPayloadPos) & econdPayloadMask);
+          h_payloadLength_org->Fill(econdPayloadLength);
+          //if(econdPayloadLength != 127 and econdPayloadLength != 196){
+          //if(eventNum == 1696 or eventNum == 8925){
+          //  cout << endl;
+          //  cout << "===============oooooooOOOOOOOOOOOOOOOOO Event number: " << std::dec<< eventNum << " OOOOOOOOOOOOOOOOOoooooooooooooooo===================" << endl;
+          //  cout << "Original Data Word: " << std::hex << std::setw(16) << payload[i] << "  EcondHeader marker: " << econdHeaderMarker << "  PayloadLength: " << std::dec << econdPayloadLength << endl;
+          //}
           //cout << std::dec << econdPayloadLength << endl;
           //if(econdPayloadLength != 127 and econdPayloadLength != 196){
           //  //cout << "PayloadLength: " << std::dec << econdPayloadLength << " EventNum: " << eventNum << endl;
           //  badPayloadLength_org.push_back(econdPayloadLength);
           //}
-          if(econdPayloadLength % 2 == 0)
+          if(econdPayloadLength % 2 == 0){
             econdTrailer = payload[i+(econdPayloadLength/2)];
-          else  
+            step1 = econdPayloadLength/2+1;
+          }
+          else{  
             econdTrailer = payload[i+(econdPayloadLength/2) + 1];
-          
+            step1 = (econdPayloadLength/2 + 2);
+          }
           originalCRC.push_back(econdTrailer);
             //cout <<  std::hex <<  std::setw(8) << econdTrailer << endl;//" " << std::dec << econdPayloadLength << endl;
           //step1 += econdPayloadLength;
         }
-        //else step1 = 1;
+        else step1 = 1;
       }
       cout << std::dec << std::setfill(' ');
     
@@ -275,7 +293,7 @@ for (const auto& it : rawdata3->map()) {
       cout << std::hex << std::setfill('0');
       size_t step2 = 1;
       //for (unsigned int i = 0; i < size / sizeof(uint32_t); i+=step2) {
-      for (size_t i = 0; i < size / sizeof(uint64_t); i++) {
+      for (size_t i = 0; i < size / sizeof(uint64_t); i+=step2) {
         //cout << std::setw(4) << i << "  " << std::setw(8) << payload[i] << " WordSize: " << sizeof(payload[i]) << '\n';
         econdHeader = 0x154;//340;
         econdHeaderPos = 55;
@@ -284,26 +302,37 @@ for (const auto& it : rawdata3->map()) {
         econdPayloadMask = 0x1ff;
         
         econdHeaderMarker = ((payload[i] >> econdHeaderPos) & econdHeaderMask);
+        econdPayloadLength = ((payload[i] >> econdPayloadPos) & econdPayloadMask);
+        //eRxHeaderStat = ((payload[i+1] >> 58) & 0x3F);
 
-        if(econdHeaderMarker == econdHeader){
+        if(econdHeaderMarker == econdHeader){//} and eRxHeaderStat == 0x38){
           //cout << econdHeaderMarker << endl;
-          econdPayloadLength = ((payload[i] >> econdPayloadPos) & econdPayloadMask);
+          
+          h_payloadLength_rpc->Fill(econdPayloadLength);
+
+          //if(econdPayloadLength != 127 and econdPayloadLength != 196){
+          //if(eventNum == 1696 or eventNum == 8925){
+          //  cout << "Repacked Data Word: " << std::hex << std::setw(16) << payload[i] << "  EcondHeader marker: " << econdHeaderMarker << "  PayloadLength: " << std::dec << econdPayloadLength << endl;
+          //}
           //if(econdPayloadLength != 127 and econdPayloadLength != 196){
           //  //cout << "PayloadLength: " << std::dec << econdPayloadLength << " EventNum: " << eventNum << endl;
           //  badPayloadLength_re.push_back(econdPayloadLength);
           //}
           //cout << std::dec << econdPayloadLength << endl;
-          if(econdPayloadLength % 2 == 0)
+          if(econdPayloadLength % 2 == 0){
             econdTrailer = payload[i+(econdPayloadLength/2)];
-          else  
+            step2 = econdPayloadLength/2 + 1;
+          }  
+          else{
             econdTrailer = payload[i+(econdPayloadLength/2) + 1];
-          
+            step2 = (econdPayloadLength/2 + 2);
+          }
           repackedCRC.push_back(econdTrailer);
           //cout <<  std::hex <<  std::setw(8) << econdTrailer << endl;//" " << std::dec << econdPayloadLength << endl;
           //step2 += econdPayloadLength;
           
         }
-        //else step2 = 1;
+        else step2 = 1;
         //cout << endl;
         //cout << "Step: " << std::dec << step << endl;
       
@@ -325,10 +354,21 @@ for (const auto& it : rawdata3->map()) {
     //}
   }
 
+  //int badEvents[38] = {347, 926, 1021, 1217, 1231, 1424, 1551, 1664, 1732, 1991, 2095, 2234, 2717, 2971, 3381, 4020, 4420, 4770, 5211, 5848, 5948, 5996, 6008, 6021, 6041, 6117, 6511, 6646, 7607, 7737, 7816, 8264, 8558, 9132, 9329};
   //cout << endl;
   int cntr = 0;
+  //if(eventNum == badEvents[evtctr]){
+  //if(eventNum == 1696 or eventNum == 8925){
+  //  cout << endl;
+  //  cout << "===============oooooooOOOOOOOOOOOOOOOOO Event number: " << eventNum << " OOOOOOOOOOOOOOOOOoooooooooooooooo===================" << endl;
+  //  for(size_t i = 0; i < originalDataWord.size(); i++){
+  //    cout << std::hex << "Orginal: " << std::setw(16) <<  originalDataWord[i] << "   Rapacked: " << repackedDataWord[i] << "   Difference: " << std::setw(16) << originalDataWord[i] - repackedDataWord[i] << endl;
+  //    
+  //  }
+  //  //evtctr++;
+  //}
   for(size_t i = 0; i < originalCRC.size(); i++){
-
+    
     //if(originalCRC[i] == repackedCRC[i]){
     //  CRC_diff->Fill(0);
     //  ECOND_v_CRC_diff->Fill(i, 0);
@@ -341,7 +381,7 @@ for (const auto& it : rawdata3->map()) {
     //  cntr++;
     //} 
 
-    if(originalCRC[i] != repackedCRC[i]){
+    if(originalCRC[i] - repackedCRC[i] != 0){
       //cout << " OriginalCRC: " << std::hex << std::setw(8) << originalCRC[i] << " RepackedCRC: " << std::setw(8) <<  repackedCRC[i] << endl;
       CRC_diff->Fill(1);
       //EvtNum->Fill(eventNum);
@@ -361,7 +401,8 @@ for (const auto& it : rawdata3->map()) {
   //cout << endl;
   if(cntr != 0){
     EvtNum->Fill(eventNum);
-    cout << " EventNum: " << eventNum << "  OriginalCRC_vec_Size:" << originalCRC.size() << "  RepackedCRC_vec_Size:" << repackedCRC.size() << endl;
+    //cout << eventNum << ", ";
+    //cout << " EventNum: " << eventNum << "," //"  OriginalCRC_vec_Size:" << originalCRC.size() << "  RepackedCRC_vec_Size:" << repackedCRC.size() << endl;
   }
   
   
