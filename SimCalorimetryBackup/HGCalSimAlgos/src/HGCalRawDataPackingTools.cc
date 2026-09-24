@@ -22,9 +22,16 @@ std::vector<uint32_t> hgcal::econd::produceERxData(const ERxChannelEnable& chann
                                 (erx.tot.at(i) & 0x3ff) << 10 | (erx.toa.at(i) & 0x3ff),
                             32);
     else if(passThrough){
-      return std::make_pair(((uint8_t)erx.tctp.at(i) & 0x3) << 30 | (erx.adcm.at(i) & 0x3ff) << 20 |
+      if(erx.tctp.at(i) == 0x3 or erx.tctp.at(i) == 0x2){
+        return std::make_pair(((uint8_t)erx.tctp.at(i) & 0x3) << 30 | (erx.adcm.at(i) & 0x3ff) << 20 |
+                                (erx.tot.at(i) & 0x3ff) << 10 | (erx.toa.at(i) & 0x3ff),
+                                32);
+      }
+      else{
+        return std::make_pair(((uint8_t)erx.tctp.at(i) & 0x3) << 30 | (erx.adcm.at(i) & 0x3ff) << 20 |
                                 (erx.adc.at(i) & 0x3ff) << 10 | (erx.toa.at(i) & 0x3ff),
-                            32);
+                                32);
+      }
     }
     else{
       switch (erx.tctp.at(i)) {

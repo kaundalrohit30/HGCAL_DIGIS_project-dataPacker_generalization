@@ -129,13 +129,14 @@ process.source = cms.Source(
     "PoolSource",
     fileNames = cms.untracked.vstring(
         #"file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/testRawDataBuffer_repacked_pedestalRun_full.root"#RAW2DIGI_110723_1.root"
-        "file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/testRawDataBuffer_repacked_eRun_full_manual_passThrough.root"#RAW2DIGI_110723_1.root"
+        #"file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/test_repacked_eRun___afterTOT_compression.root"#testRawDataBuffer_repacked_eRun_full_manual_passThrough.root"#RAW2DIGI_110723_1.root"
+        "file:/eos/user/r/rkaundal/Rohit/HGCAL_git_nw/HGCAL_DIGIS_project/HGCal_Digis_generalization/CMSSW_16_1_0/src/rawDataProducer_repacked_gen/rawDataProducer_repacked/python/test_RawDataBuffer_repacked_fixedADC_run_2026.root"
     )
 )
 
 process.TFileService = cms.Service(
     "TFileService",
-    fileName = cms.string("tmp_DIGIS_difference_electronRun_full_nw1.root")
+    fileName = cms.string("Validation_plots_fixedADC_2026.root")
 )
 process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(-1)

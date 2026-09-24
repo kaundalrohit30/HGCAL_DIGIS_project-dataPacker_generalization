@@ -55,6 +55,12 @@
 // from  edm::one::EDAnalyzer<>
 // This will improve performance in multithreaded jobs.
 
+uint16_t compressToT(uint16_t totraw) {
+    if (totraw > 0x1ff)
+      return (0x200 | (totraw >> 3));
+    return (totraw & 0x1ff);
+  }
+
 class validation_RAW2DIGI : public edm::one::EDAnalyzer<
                                   edm::one::SharedResources,
                                   edm::one::WatchRuns>  {
@@ -113,8 +119,27 @@ private:
   TH1D* h_erx;
   TH1D* h_channel;
 
-  TH1D* h_TOT_Org;
-  TH1D* h_TOT_Rpc;
+  TH2D* h2_TOT;
+  TH2D* h2_adc;
+  TH2D* h2_adcm1;
+  TH2D* h2_toa;
+
+  //TH1D* h_TOT_Rpc;
+  //TH1D* h_adc_Rpc;
+  //TH1D* h_adcm1_Rpc;
+  //TH1D* h_toa_Rpc;
+
+  //TH1D* h_TOT_Org;
+  //TH1D* h_adc_Org;
+  //TH1D* h_adcm1_Org;
+  //TH1D* h_toa_Org;
+
+
+  TH1D* h_TOT_Org_comp;
+  TH1D* h_TOT_Rpc_comp;
+
+  TH1D* h_TOT_Org_9_ECONDid;
+  TH1D* h_TOT_Rpc_9_ECONDid;
 
 
 #ifdef THIS_IS_AN_EVENTSETUP_EXAMPLE
@@ -157,9 +182,25 @@ validation_RAW2DIGI::validation_RAW2DIGI(const edm::ParameterSet& iConfig)
   h_Econd = fs->make<TH1D>("ECOND", "ECONDs having discrepancy;ECOND ID;Counts", 12, 0, 12);
   h_erx = fs->make<TH1D>("Erx", "Erxs having discrepancy;Erx ID;Counts", 6, 0, 6);
   h_channel = fs->make<TH1D>("Channel", "Channels having discrepancy;Channel ID;Counts", 37, 0, 37);
-  h_TOT_Org = fs->make<TH1D>("TOT_Org", "TOT Org ;TOT;Counts", 5000, 0, 5000);
-  h_TOT_Rpc = fs->make<TH1D>("TOT_Rpc", "TOT Rpc ;TOT;Counts", 5000, 0, 5000);
+  //h_TOT_Org = fs->make<TH1D>("TOT_Org", "TOT Org ;TOT;Counts", 5000, 0, 5000);
+  //h_TOT_Rpc = fs->make<TH1D>("TOT_Rpc", "TOT Rpc ;TOT;Counts", 5000, 0, 5000);
+  h_TOT_Org_comp = fs->make<TH1D>("TOT_Org_Comp", "TOT Org Compressed;TOT;Counts", 5000, 0, 5000);
+  h_TOT_Rpc_comp = fs->make<TH1D>("TOT_Rpc_Comp", "TOT Rpc Compressed ;TOT;Counts", 5000, 0, 5000);
+  h_TOT_Org_9_ECONDid = fs->make<TH1D>("TOT_Org_9", "TOT Org distribution (9th ECOND id);TOT;Counts", 5000, 0, 5000); 
+  h_TOT_Rpc_9_ECONDid = fs->make<TH1D>("TOT_Rpc_9", "TOT Rpc distribution (9th ECOND id) ;TOT;Counts", 5000, 0, 5000);
 
+  h2_TOT = fs->make<TH2D>("TOT_2d", "TOT Org vs TOT Rpc;TOT_Org;TOT_Rpc", 5000, 0, 5000, 5000, 0, 5000);;
+  h2_adc = fs->make<TH2D>("ADC_2d", "ADC Org vs ADC Rpc;ADC_Org;ADC_Rpc", 1024, 0, 1024, 1024, 0, 1024);
+  h2_adcm1 = fs->make<TH2D>("ADCm1_2d", "ADCm1 Org vs ADCm1 Rpc;ADCm1_Org;ADCm1_Rpc", 1024, 0, 1024, 1024, 0, 1024);
+  h2_toa = fs->make<TH2D>("TOA_2d", "TOA Org vs TOA Rpc;TOA_Org;TOA_Rpc", 5000, 0, 5000, 5000, 0, 5000);
+
+  //h_adc_Rpc = fs->make<TH1D>("ADC_Rpc", "ADC_Rpc;ADC;Counts", 1024, 0, 1024);;
+  //h_adcm1_Rpc = fs->make<TH1D>("ADCm1_Rpc", "ADCm1 Rpc ;ADCm1;Counts", 1024, 0, 1024);;
+  //h_toa_Rpc = fs->make<TH1D>("TOA_Rpc", "TOA Rpc ;TOA;Counts", 5000, 0, 5000);;
+
+  //h_adc_Org = fs->make<TH1D>("ADC_Org", "ADC_Org;ADC;Counts", 1024, 0, 1024);
+  //h_adcm1_Org = fs->make<TH1D>("ADCm1_Org", "ADCm1 Org ;ADCm1;Counts", 1024, 0, 1024);
+  //h_toa_Org = fs->make<TH1D>("TOA_Org", "TOA Org ;TOA;Counts", 5000, 0, 5000);
 
 #ifdef THIS_IS_AN_EVENTSETUP_EXAMPLE
   setupDataToken_ = esConsumes<SetupData, SetupRecord>();
@@ -220,19 +261,19 @@ void validation_RAW2DIGI::analyze(const edm::Event& iEvent, const edm::EventSetu
     view1.tot()[i]   = 0;
     view1.toa()[i]   = 0;
     view1.cm()[i]    = 0;
-    view1.flags()[i] = 0;
+    //view1.flags()[i] = 0;
 }
 
-//auto view2 = digis_Rpc.view();
-//  for (size_t i = 0; i < moduleIndexer_Rpc.maxDataSize(); ++i) {
-//    view2.tctp()[i]  = 0;
-//    view2.adcm1()[i] = 0;
-//    view2.adc()[i]   = 0;
-//    view2.tot()[i]   = 0;
-//    view2.toa()[i]   = 0;
-//    view2.cm()[i]    = 0;
-//    view2.flags()[i] = 0;
-//}
+auto view2 = digis_Rpc.view();
+  for (size_t i = 0; i < moduleIndexer_Rpc.maxDataSize(); ++i) {
+    view2.tctp()[i]  = 0;
+    view2.adcm1()[i] = 0;
+    view2.adc()[i]   = 0;
+    view2.tot()[i]   = 0;
+    view2.toa()[i]   = 0;
+    view2.cm()[i]    = 0;
+    //view2.flags()[i] = 0;
+}
 
   // CREATE DIGIs
   // std::cout << "Created DIGIs SOA with " << digis.view().metadata().size() << " entries" << std::endl;
@@ -304,6 +345,8 @@ void validation_RAW2DIGI::analyze(const edm::Event& iEvent, const edm::EventSetu
             aveadc += digis_Org.view()[denseIdx].adc();
             nchans++;
           }
+
+          uint16_t TOT_Org = digis_Org.view()[denseIdx].tot();
           //if(digis_Org.view()[denseIdx].flags()  == 0x0000 or digis_Org.view()[denseIdx].flags() == 0x8000){//!=hgcal::DIGI_FLAG::NotAvailable){
           //if(digis_Org.view()[denseIdx].flags() !=hgcal::DIGI_FLAG::NotAvailable){
             tctp_Org.push_back(digis_Org.view()[denseIdx].tctp());
@@ -317,7 +360,16 @@ void validation_RAW2DIGI::analyze(const edm::Event& iEvent, const edm::EventSetu
             Econd_Org.push_back(econdIdx);
             Erx_Org.push_back(erxIdx);
 
-            h_TOT_Org->Fill(digis_Org.view()[denseIdx].tot());
+            //h_TOT_Org->Fill(TOT_Org);
+            h_TOT_Org_comp->Fill(compressToT(TOT_Org));
+
+            //h_adc_Org->Fill(digis_Org.view()[denseIdx].adc());
+            //h_adcm1_Org->Fill(digis_Org.view()[denseIdx].adcm1());
+            //h_toa_Org->Fill(digis_Org.view()[denseIdx].toa());
+
+            if(econdIdx == 9){
+              h_TOT_Org_9_ECONDid->Fill(TOT_Org);
+            }
           //}
 
           //std::cout << ">>> HGCalUnpacker:    channelIdx= " << channelIdx << ", denseIdx = " << denseIdx
@@ -369,6 +421,7 @@ void validation_RAW2DIGI::analyze(const edm::Event& iEvent, const edm::EventSetu
             nchans++;
           }
 
+          uint16_t TOT_Rpc = digis_Rpc.view()[denseIdx].tot();
           //if(digis_Rpc.view()[denseIdx].flags() == 0x0000 or digis_Rpc.view()[denseIdx].flags() == 0x8000){//!=hgcal::DIGI_FLAG::NotAvailable){
           //if(digis_Rpc.view()[denseIdx].flags() !=hgcal::DIGI_FLAG::NotAvailable){
             tctp_Rpc.push_back(digis_Rpc.view()[denseIdx].tctp());
@@ -382,8 +435,14 @@ void validation_RAW2DIGI::analyze(const edm::Event& iEvent, const edm::EventSetu
             Econd_Rpc.push_back(econdIdx);
             Erx_Rpc.push_back(erxIdx);
 
-            
-            h_TOT_Rpc->Fill(digis_Rpc.view()[denseIdx].tot());
+            //h_adc_Rpc->Fill(digis_Rpc.view()[denseIdx].adc());
+            //h_adcm1_Rpc->Fill(digis_Rpc.view()[denseIdx].adcm1());
+            //h_toa_Rpc->Fill(digis_Rpc.view()[denseIdx].toa());
+            //h_TOT_Rpc->Fill(digis_Rpc.view()[denseIdx].tot());
+            //h_TOT_Rpc_comp->Fill(compressToT(TOT_Rpc));
+            if(econdIdx == 9){
+              h_TOT_Rpc_9_ECONDid->Fill(TOT_Rpc);
+            }
 
           //}
           //std::cout << ">>> HGCalUnpacker:    channelIdx= " << channelIdx << ", denseIdx = " << denseIdx
@@ -416,11 +475,11 @@ void validation_RAW2DIGI::analyze(const edm::Event& iEvent, const edm::EventSetu
 
     //oooooooooOOOOOOOOOOOOOOOOOOOOoo======== Comparision =========OoooooOOOOOOOOOOOOOOOOoooooooo
     bool badEvents = false;
-    if(tctp_Org.size() != tctp_Rpc.size()){
-      std::cout << "oOOOOOOOOOOOOOOOOOOOOOOoooo data size doesn't match: oooOOOOOOOOOOOOOOOOOOOo" << std::endl;
-      //return;
-    }
-    else{
+    //if(tctp_Org.size() != tctp_Rpc.size()){
+    //  std::cout << "oOOOOOOOOOOOOOOOOOOOOOOoooo data size doesn't match: oooOOOOOOOOOOOOOOOOOOOo" << std::endl;
+    //  //return;
+    //}
+    //else{
       for(size_t i = 0; i < tctp_Org.size(); i++){
         //if(flags_Org[i] == 0x0000 or flags_Org[i] == 0x8000){
           h_adc_diff->Fill(adc_Org[i] - adc_Rpc[i]);
@@ -429,6 +488,11 @@ void validation_RAW2DIGI::analyze(const edm::Event& iEvent, const edm::EventSetu
           h_toa_diff->Fill(toa_Org[i] - toa_Rpc[i]);
           h_tctp_diff->Fill(tctp_Org[i] - tctp_Rpc[i]);
           h_cm_diff->Fill(cm_Org[i] - cm_Rpc[i]);
+
+          h2_TOT->Fill(tot_Org[i], tot_Rpc[i]);
+          h2_adc->Fill(adc_Org[i], adc_Rpc[i]);
+          h2_adcm1->Fill(adcm1_Org[i], adcm1_Rpc[i]);
+          h2_toa->Fill(toa_Org[i], toa_Rpc[i]);
 
           if((adc_Org[i] != adc_Rpc[i]) or (adcm1_Org[i] != adcm1_Rpc[i]) or (tot_Org[i] != tot_Rpc[i]) or (toa_Org[i] != toa_Rpc[i]) or (tctp_Org[i] != tctp_Rpc[i]) or (cm_Org[i] != cm_Rpc[i])){
             //h_event->Fill(eventNum);
@@ -441,7 +505,7 @@ void validation_RAW2DIGI::analyze(const edm::Event& iEvent, const edm::EventSetu
       }
       if(badEvents == true)
         h_event->Fill(eventNum);
-    }
+    //}
 #ifdef THIS_IS_AN_EVENTSETUP_EXAMPLE
   // if the SetupData is always needed
   auto setup = iSetup.getData(setupToken_);
