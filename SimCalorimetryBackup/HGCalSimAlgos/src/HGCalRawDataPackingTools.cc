@@ -54,6 +54,14 @@ std::vector<uint32_t> hgcal::econd::produceERxData(const ERxChannelEnable& chann
               //return std::make_pair((0x0 << 20) | ((erx.adcm.at(i) & 0x3ff) << 10) | (erx.adc.at(i) & 0x3ff), 24);
 
           }
+
+          if(!passZSm1){
+            if(erx.toa.at(i)!=0)
+              return std::make_pair((0x3 << 20) | ((erx.adc.at(i) & 0x3ff) << 10) | (erx.toa.at(i) & 0x3ff), 24);
+            else 
+              return std::make_pair(((0x1 << 12) | ((erx.adc.at(i) & 0x3FF) << 2)) & 0xFFFC, 16);
+          }
+
           // at this point, does not have any BX-1 ZS info
           if (hasToA)
             return std::make_pair((0x3 << 20) | ((erx.adc.at(i) & 0x3ff) << 10) | (erx.toa.at(i) & 0x3ff), 24);
@@ -107,14 +115,34 @@ std::vector<uint32_t> hgcal::econd::produceERxData(const ERxChannelEnable& chann
     }else  // everything fits into one word
       *it_data |= word << msb;*/
     
-    if (msb > 0){// and (msb + nbits >= 32)){  // do we have some room for additional information?
+    //if (msb > 0){// and (msb + nbits >= 32)){  // do we have some room for additional information?
+    //  *it_data &= ((1 << 32) - 1);    
+    //} 
+
+    if (msb > 0 and msb < 32){// and (msb + nbits >= 32)){  // do we have some room for additional information?
       *it_data &= ((1 << 32) - 1);
+      uint8_t nbits_word2 = 32 - msb;
+      if(nbits_word2 > nbits){
+        *it_data |= (word & (((1 << nbits_word2) - 1))) << abs(nbits - nbits_word2);
+        //it_data = data.insert(data.end(), ((word << 32 )));
+      }
+      else if(nbits_word2 == nbits){
+        *it_data |= (word & (1 << nbits_word2) - 1);
+      }
+      else{
+        //std::cout << "previous word: " << std::hex << *it_data << "   " << std::bitset<32>(*it_data) << std::dec<< std::endl;
+        *it_data |= (word & (((1 << nbits_word2) - 1) << abs(nbits - nbits_word2))) >> abs(nbits - nbits_word2);
+        //std::cout << "Original word: " << std::hex << word << "   " << std::bitset<32>(word) << "  shifted word: " << ((word & (((1 << nbits_word2) - 1) << (nbits - nbits_word2))) >> (nbits - nbits_word2))  << std::dec<< std::endl;
+        //std::cout << "joined with previous word: " << std::hex << *it_data << "   " << std::bitset<32>(*it_data) << std::dec<< std::endl;
+        it_data = data.insert(data.end(), ((word << (32 - nbits + nbits_word2))));
+        //std::cout << "spilling to next word: " << std::hex << ((word << (32 - nbits + nbits_word2))) << "   " << std::bitset<32>(((word << (32 - nbits + nbits_word2)))) << std::dec<< std::endl;
+      }
       //*it_data &= ((1 << msb) - 1);
       //*it_data <<= (32-msb); 
-    }//else
-     //   *it_data &= ((1 << msb) - 1);
+    }
 
-    if (msb + nbits > 32) {  // spilling onto the next word
+
+    else if(msb + nbits > 32) {  // spilling onto the next word
       uint8_t nbits_word1 = 32 - msb;
       //std::cout << "previous word: " << std::hex << *it_data << "   " << std::bitset<32>(*it_data) << std::dec<< std::endl;
       *it_data |= (word & (((1 << nbits_word1) - 1) << (nbits - nbits_word1))) >> (nbits - nbits_word1);

@@ -386,7 +386,8 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
     tctp.push_back(digis_view.tctp()[i]);
     adc.push_back(digis_view.adc()[i]);
     adcm1.push_back(digis_view.adcm1()[i]);
-    tot.push_back(compressToT(digis_view.tot()[i]));
+    //tot.push_back(compressToT(digis_view.tot()[i]));
+    tot.push_back(digis_view.tot()[i]);
     toa.push_back(digis_view.toa()[i]);
     cm.push_back(digis_view.cm()[i]);
     flags.push_back(digis_view.flags()[i]);
@@ -709,7 +710,8 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   uint16_t header =  340;//170;
   bool passThrough;
   //bool passThrough1 = false;
-  std::vector<bool> passThrough1{false, false, false,false,false,false,false,false,false,true,false,false,};
+  std::vector<bool> passThrough1{false, false, false,false,false,false,false,false,false,true,false,false,};  //for configuration 11LD, 1 Scint module
+  //std::vector<bool> passThrough1{false, false, false,false,false,false,false,false,true,false,false,}; //for configuration 10LD, 1 Scint module
   uint8_t ht = 0;
   uint8_t ebo = 0;
   uint8_t ehHam = 9;
@@ -718,7 +720,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   uint8_t Ham = 0;
   bool bitE = true;
   bool passZS = true;
-  bool passZSm1 = true;
+  bool passZSm1 = false;
   bool hasToA = false;
   bool charMode = false;
   uint8_t econCrc = 244;
@@ -727,20 +729,64 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
   uint32_t padding = 0;
   int moduleNum = 0;
 
-  //std::vector<uint32_t> econdPayloadCheck;
-//if(eventNum == 2){
+//===============ooooooooooooOOOOOOOOOOOOOOOOOOOOOoooooooooooooooooooOOOOOOOOOOOOOOOOOOOOoooooooo==================
+//                 Payload Length Calculation from the dataWords
+
+  std::vector<uint16_t> CalculatedPayloadLength;
+  CalculatedPayloadLength.clear();
+  std::vector<uint32_t> dataWords;
+  size_t moduleNum1 = 0;
+  size_t moduleCountr = 0;
+  for(size_t erx = 0; erx < allERxData.size(); ++erx){
+    uint32_t eRxSum = std::accumulate(nErx.begin(), nErx.begin() + moduleNum1, uint32_t{0});
+    passThrough = passThrough1[moduleCountr];
+    
+    if(erx == 0 or erx == eRxSum){
+      //cout << "erx: " << erx << " ErxSum: " << eRxSum << endl;
+      if(erx != 0){      
+        CalculatedPayloadLength.push_back(dataWords.size()); 
+      }
+      dataWords.clear();
+      moduleNum1++;
+    }
+    bool eRxPresent = std::any_of(
+      enableMaps[erx].begin(),
+      enableMaps[erx].end(),
+      [](bool enabled) { return enabled; }
+      );
+
+      if (!eRxPresent) {
+          bitE = false;
+          //passThrough = false;
+          const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
+          dataWords.push_back(eRxheader[0]);  
+
+      } else{
+        //bitE = false;
+        //passThrough = false;
+
+          const auto eRxheader = hgcal::econd::eRxSubPacketHeader(stat, Ham, bitE, cm0[erx], cm1[erx], enableMaps[erx]);  //eRx Header for each eRX
+          dataWords.push_back(eRxheader[0]);      
+          dataWords.push_back(eRxheader[1]);
+
+          const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], passZS, passZSm1, hasToA, charMode, passThrough);  //eRx data for each eRX
+          for(size_t ch = 0; ch < erx_chan_data.size(); ++ch){
+            dataWords.push_back(erx_chan_data[ch]);
+          }
+        }
+
+      if(erx == eRxSum-1){
+        moduleCountr++;
+      }
+      if(erx==allERxData.size()-1){
+        CalculatedPayloadLength.push_back(dataWords.size());
+      }
+      
+  }
 
 
   for(size_t erx = 0; erx < allERxData.size(); ++erx){   //looping over all eRx
 
-      //bool alleRxPresent = std::all_of(enableMaps[erx].begin(),
-      //            enableMaps[erx].end(),
-      //            [](bool enabled) { return enabled; });
-      //if(alleRxPresent){
-      //  passThrough = true;     //temporary, need to implement properly
-      //}
-      //else 
-      //  passThrough = false;
 
       uint32_t eRxSum = std::accumulate(nErx.begin(), nErx.begin() + moduleNum, uint32_t{0});
      // cout << "erxid: " << erx << "eRxSum: " << eRxSum << endl;
@@ -788,7 +834,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
         //passThrough = passThrough1;
 
         auto econdHeader = hgcal::econd::eventPacketHeader(header,
-                                                                payloadLength[econdIdx], 
+                                                                payloadLength[econdIdx], //CalculatedPayloadLength[econdIdx]+1,
                                                                 passThrough,
                                                                 true,
                                                                 ht,
@@ -910,7 +956,7 @@ void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup
                              hgcal::ECOND_FRAME::CRC_FINALXOR,
                              false,
                              false>(bytes, (payloadLength[econdIdx-1] - 1) * 4);  //need to be checked !!!!!
-
+                             //false>(bytes, (CalculatedPayloadLength[econdIdx-1]) * 4);
 
         if((CRC_calc.size() + 1) % 2 != 0){
           econdPacket.push_back(crc32);
