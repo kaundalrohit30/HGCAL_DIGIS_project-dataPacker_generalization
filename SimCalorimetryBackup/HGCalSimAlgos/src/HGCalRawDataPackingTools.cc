@@ -7,12 +7,12 @@
 
 std::vector<uint32_t> hgcal::econd::produceERxData(const ERxChannelEnable& channel_enable,
                                                    const ERxData& erx,
-                                                   bool passZS,
-                                                   bool passZSm1,
-                                                   bool hasToA,
+                                                   //bool passZS,
+                                                   //bool passZSm1,
+                                                   //bool hasToA,
                                                    bool char_mode,
                                                    bool passThrough) {
-  auto format_word = [&erx, &passZS, &passZSm1, &hasToA, &char_mode, &passThrough](size_t i) -> std::pair<uint32_t, uint8_t> {
+  auto format_word = [&erx, /*&passZS, &passZSm1, &hasToA,*/ &char_mode, &passThrough](size_t i) -> std::pair<uint32_t, uint8_t> {
     //std::cout << "format_word:  i: " << i << "  erx.tctp.size(): " << erx.tctp.size() << std::endl;
     if (i >= erx.tctp.size())
       throw cms::Exception("HGCalEmulator")
@@ -38,35 +38,39 @@ std::vector<uint32_t> hgcal::econd::produceERxData(const ERxChannelEnable& chann
         case ToTStatus::ZeroSuppressed: {
           //std::cout << "oooooooooOOOOOOOOOOOOoooooooooooo ToTStatus::ZeroSuppressed: oooooooooOOOOOOOOOOOOoooooooooooo" << std::endl; 
 
-          if (!passZS)
-            throw cms::Exception("HGCalEmulator") << "ToT status is ZeroSuppressed, but event frame does not pass ZS.";
-          if (passZSm1) { 
-            if(erx.toa.at(i)!=0)
-              return std::make_pair((0x1 << 30) | ((erx.adcm.at(i) & 0x3ff) << 20) | ((erx.adc.at(i) & 0x3ff) << 10) |
-                                        (erx.toa.at(i) & 0x3ff),
-                                    32);
-            else if (hasToA)
-              return std::make_pair((0x1 << 30) | ((erx.adcm.at(i) & 0x3ff) << 20) | ((erx.adc.at(i) & 0x3ff) << 10) |
-                                        (erx.toa.at(i) & 0x3ff),
-                                    32);
-            else
-              return std::make_pair(((erx.adcm.at(i) & 0x3ff) << 10) | (erx.adc.at(i) & 0x3ff), 24);
-              //return std::make_pair((0x0 << 20) | ((erx.adcm.at(i) & 0x3ff) << 10) | (erx.adc.at(i) & 0x3ff), 24);
+          //if (!passZS)
+          //  throw cms::Exception("HGCalEmulator") << "ToT status is ZeroSuppressed, but event frame does not pass ZS.";
+          if(erx.passZS.at(i)){
+            if (erx.passZSm1.at(i)) { 
+              if(erx.toa.at(i)!=0)
+                return std::make_pair((0x1 << 30) | ((erx.adcm.at(i) & 0x3ff) << 20) | ((erx.adc.at(i) & 0x3ff) << 10) |
+                                          (erx.toa.at(i) & 0x3ff),
+                                      32);
+              //else if (hasToA)
+              //  return std::make_pair((0x1 << 30) | ((erx.adcm.at(i) & 0x3ff) << 20) | ((erx.adc.at(i) & 0x3ff) << 10) |
+              //                            (erx.toa.at(i) & 0x3ff),
+              //                        32);
+              else
+                return std::make_pair(((erx.adcm.at(i) & 0x3ff) << 10) | (erx.adc.at(i) & 0x3ff), 24);
+                //return std::make_pair((0x0 << 20) | ((erx.adcm.at(i) & 0x3ff) << 10) | (erx.adc.at(i) & 0x3ff), 24);
 
+            }
+            else if(!erx.passZSm1.at(i)){
+              if(erx.toa.at(i)!=0)
+                return std::make_pair((0x3 << 20) | ((erx.adc.at(i) & 0x3ff) << 10) | (erx.toa.at(i) & 0x3ff), 24);
+              else 
+                return std::make_pair(((0x1 << 12) | ((erx.adc.at(i) & 0x3FF) << 2)) & 0xFFFC, 16);
           }
-
-          if(!passZSm1){
-            if(erx.toa.at(i)!=0)
-              return std::make_pair((0x3 << 20) | ((erx.adc.at(i) & 0x3ff) << 10) | (erx.toa.at(i) & 0x3ff), 24);
-            else 
-              return std::make_pair(((0x1 << 12) | ((erx.adc.at(i) & 0x3FF) << 2)) & 0xFFFC, 16);
-          }
+        }
+        else return std::make_pair((0 << 30) | (0 << 20) | (0 << 10) | 0, 32);
+                                          
+          
 
           // at this point, does not have any BX-1 ZS info
-          if (hasToA)
-            return std::make_pair((0x3 << 20) | ((erx.adc.at(i) & 0x3ff) << 10) | (erx.toa.at(i) & 0x3ff), 24);
+          //if (hasToA)
+          //  return std::make_pair((0x3 << 20) | ((erx.adc.at(i) & 0x3ff) << 10) | (erx.toa.at(i) & 0x3ff), 24);
           //return std::make_pair((0x1 << 10) | (erx.adc.at(i) & 0x3ff), 16);
-          return std::make_pair((0x1 << 12) | ((erx.adc.at(i) & 0x3ff) << 2), 16);
+          //return std::make_pair((0x1 << 12) | ((erx.adc.at(i) & 0x3ff) << 2), 16);
         }
         case ToTStatus::noZeroSuppressed_TOASuppressed:
           //std::cout << "oooooooooOOOOOOOOOOOOoooooooooooo ToTStatus::noZeroSuppressed_TOASuppressed: oooooooooOOOOOOOOOOOOoooooooooooo" << std::endl;
@@ -97,12 +101,13 @@ std::vector<uint32_t> hgcal::econd::produceERxData(const ERxChannelEnable& chann
       continue;
     const auto [word, nbits] = format_word(i);  // retrieve the channel word in its proper formatting
 
-    //std::cout << "msb: " << static_cast<uint32_t>(msb) << std::endl;
+    //std::cout << "msb before: " << static_cast<uint32_t>(msb) << std::endl;
 
     if (msb == 32)//>= 32)  // if we are already at the next word
       it_data = data.insert(data.end(), 0);
     msb %= 32;  // 0 <= msb < 32
 
+    //std::cout << "msb after: " << static_cast<uint32_t>(msb) << std::endl;
     /*if (msb > 0)  // do we have some room for additional information?
       *it_data &= ((1 << msb) - 1);
     if (msb + nbits > 32) {  // spilling onto the next word
@@ -115,11 +120,7 @@ std::vector<uint32_t> hgcal::econd::produceERxData(const ERxChannelEnable& chann
     }else  // everything fits into one word
       *it_data |= word << msb;*/
     
-    //if (msb > 0){// and (msb + nbits >= 32)){  // do we have some room for additional information?
-    //  *it_data &= ((1 << 32) - 1);    
-    //} 
-
-    if (msb > 0 and msb < 32){// and (msb + nbits >= 32)){  // do we have some room for additional information?
+    if(msb > 0 and msb < 32){// and (msb + nbits >= 32)){  // do we have some room for additional information?
       *it_data &= ((1 << 32) - 1);
       uint8_t nbits_word2 = 32 - msb;
       if(nbits_word2 > nbits){
@@ -139,12 +140,12 @@ std::vector<uint32_t> hgcal::econd::produceERxData(const ERxChannelEnable& chann
       }
       //*it_data &= ((1 << msb) - 1);
       //*it_data <<= (32-msb); 
-    }
-
+    }//else
+     //   *it_data &= ((1 << msb) - 1);
 
     else if(msb + nbits > 32) {  // spilling onto the next word
       uint8_t nbits_word1 = 32 - msb;
-      //std::cout << "previous word: " << std::hex << *it_data << "   " << std::bitset<32>(*it_data) << std::dec<< std::endl;
+      ////std::cout << "previous word: " << std::hex << *it_data << "   " << std::bitset<32>(*it_data) << std::dec<< std::endl;
       *it_data |= (word & (((1 << nbits_word1) - 1) << (nbits - nbits_word1))) >> (nbits - nbits_word1);
       //std::cout << "Original word: " << std::hex << word << "   " << std::bitset<32>(word) << "  shifted word: " << ((word & (((1 << nbits_word1) - 1) << (nbits - nbits_word1))) >> (nbits - nbits_word1))  << std::dec<< std::endl;
       //std::cout << "joined with previous word: " << std::hex << *it_data << "   " << std::bitset<32>(*it_data) << std::dec<< std::endl;
