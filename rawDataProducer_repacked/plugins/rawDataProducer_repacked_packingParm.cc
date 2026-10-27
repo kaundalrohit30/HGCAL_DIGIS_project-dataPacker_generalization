@@ -85,7 +85,7 @@ std::vector<bool> packingParm(std::vector<uint8_t> &tctp, std::vector<uint16_t> 
   bool passZSm1Parm, passZSParm;
   //std::cout << "chNum: " << tctp.size() << std::endl;
   for(size_t i = 0; i < tctp.size(); i++){
-    std::cout << "chId: " << i << " tctp: " << static_cast<unsigned int>(tctp[i]) << " ADC: " << adc[i] << "  ADCm1: " << adcm1[i] <<  "  Threshold: " << adcTh[i] << std::endl;
+    //std::cout << "chId: " << i << " tctp: " << static_cast<unsigned int>(tctp[i]) << " ADC: " << adc[i] << "  ADCm1: " << adcm1[i] <<  "  Threshold: " << adcTh[i] << std::endl;
     if(tctp[i] == 0){
       //std::cout << "chId: " << i << " ADC: " << adc[i] << "  ADCm1: " << adcm1[i] <<  "  Threshold: " << adcTh[i] << std::endl;
       //std::cout << "adcm1: " << adcm1[i] << std::endl;
@@ -205,10 +205,10 @@ uint16_t compressToT(uint16_t totraw) {
     return (totraw & 0x1ff);
   }
 
-class rawDataProducer_repacked_packingParm : public edm::stream::EDProducer<> {
+class rawDataProducer_repacked : public edm::stream::EDProducer<> {
 public:
-  explicit rawDataProducer_repacked_packingParm(const edm::ParameterSet&);
-  ~rawDataProducer_repacked_packingParm() override;
+  explicit rawDataProducer_repacked(const edm::ParameterSet&);
+  ~rawDataProducer_repacked() override;
 
   static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -261,7 +261,7 @@ private:
 //
 // constructors and destructor
 //
-rawDataProducer_repacked_packingParm::rawDataProducer_repacked_packingParm(const edm::ParameterSet& iConfig)
+rawDataProducer_repacked::rawDataProducer_repacked(const edm::ParameterSet& iConfig)
 : digisToken_(consumes<hgcaldigi::HGCalDigiHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
     calibToken_{esConsumes(iConfig.getParameter<edm::ESInputTag>("calibSource"))},
     econdInfoTkn_(consumes<hgcaldigi::HGCalECONDPacketInfoHost>(iConfig.getUntrackedParameter<edm::InputTag>("hgcalDigis"))),
@@ -279,7 +279,7 @@ rawDataProducer_repacked_packingParm::rawDataProducer_repacked_packingParm(const
 
 }
 
-rawDataProducer_repacked_packingParm::~rawDataProducer_repacked_packingParm() {
+rawDataProducer_repacked::~rawDataProducer_repacked() {
   
 }
 
@@ -288,7 +288,7 @@ rawDataProducer_repacked_packingParm::~rawDataProducer_repacked_packingParm() {
 //
 
 // ------------ method called to produce the data  ------------
-void rawDataProducer_repacked_packingParm::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
+void rawDataProducer_repacked::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   using namespace edm;
   using namespace std;
   
@@ -431,7 +431,9 @@ void rawDataProducer_repacked_packingParm::produce(edm::Event& iEvent, const edm
     //adc_Threshold.push_back(hostCalibParamProvider.view()[i].ADC_ped() + k*hostCalibParamProvider.view()[i].Noise());
     //adc_Threshold[eRxNum].push_back(hostCalibParamProvider.view()[i].ADC_ped() + k*hostCalibParamProvider.view()[i].Noise());
 
-    Thresholds.at(eRxNum).adc_Threshold.push_back(hostCalibParamProvider.view()[i].ADC_ped() + k*hostCalibParamProvider.view()[i].Noise());
+    uint16_t adc_Thr = hostCalibParamProvider.view()[i].ADC_ped() + k*hostCalibParamProvider.view()[i].Noise();
+    uint16_t adcm1_Thr = hostCalibParamProvider.view()[i].ADC_ped();// + k*hostCalibParamProvider.view()[i].Noise();
+    Thresholds.at(eRxNum).adc_Threshold.push_back(adc_Thr);
 
     if(digis_view.flags()[i] == hgcal::DIGI_FLAG::NotAvailable){
       enableMaps.at(eRxNum).at(chIdx) = false;
@@ -440,6 +442,8 @@ void rawDataProducer_repacked_packingParm::produce(edm::Event& iEvent, const edm
       allERxData.at(eRxNum).adcm.push_back(uint16_t(0));
       allERxData.at(eRxNum).toa.push_back(uint16_t(0));
       allERxData.at(eRxNum).tot.push_back(uint16_t(0));
+      allERxData.at(eRxNum).passZS.push_back(false);
+      allERxData.at(eRxNum).passZSm1.push_back(false);
       //allERxData.at(eRxNum).meta.push_back(moduleInfo_view.captureblockidx()[modInfoIdx]);
     }
     else{
@@ -449,6 +453,23 @@ void rawDataProducer_repacked_packingParm::produce(edm::Event& iEvent, const edm
       allERxData.at(eRxNum).adcm.push_back(digis_view.adcm1()[i]);
       allERxData.at(eRxNum).toa.push_back(digis_view.toa()[i]);
       allERxData.at(eRxNum).tot.push_back(compressToT(digis_view.tot()[i]));
+      //if(digis_view.adc()[i] > adc_Thr){
+        allERxData.at(eRxNum).passZS.push_back((digis_view.adc()[i] > adc_Thr ? true : false));
+        //cout << "erx: " << eRxNum << " chIdx: " << chIdx << " adc: " << digis_view.adc()[i] << " adcm1: " << digis_view.adcm1()[i] << " Threshold: " << adc_Thr << " passZS = true" << endl;
+      //}
+      //else{
+      //  allERxData.at(eRxNum).passZS.push_back(false);
+      //  cout << "erx: " << eRxNum << " chIdx: " << chIdx << " adc: " << digis_view.adc()[i] << " adcm1: " << digis_view.adcm1()[i] << " Threshold: " << adc_Thr << " passZS = false" << endl;
+      //} 
+
+      //if(digis_view.adcm1()[i] > adc_Thr){
+        allERxData.at(eRxNum).passZSm1.push_back((digis_view.adcm1()[i] > adc_Thr ? true : false));
+        //cout << "erx: " << eRxNum << " chIdx: " << chIdx << " adc: " << digis_view.adc()[i] << " adcm1: " << digis_view.adcm1()[i] << " Threshold: " << adc_Thr << " passZSm1 = true" << endl;
+      //}
+      //else{
+      //  allERxData.at(eRxNum).passZSm1.push_back(false);
+      //  cout << "erx: " << eRxNum << " chIdx: " << chIdx << " adc: " << digis_view.adc()[i] << " adcm1: " << digis_view.adcm1()[i] << " Threshold: " << adc_Thr << " passZSm1 = false" << endl;
+      //} 
       //allERxData.at(eRxNum).meta.push_back(moduleInfo_view.captureblockidx()[modInfoIdx]);
        nGoodDigis++;
     }
@@ -670,12 +691,12 @@ void rawDataProducer_repacked_packingParm::produce(edm::Event& iEvent, const edm
   for(size_t erx = 0; erx < allERxData.size(); ++erx){
 
     //=======================ooooooooooOOOOOOOOOOOOOOOOOOO To emulate packing parameter passZSm1 OOOOOOOOOOOOOOOoooooooooooo========================
-    if(erx > 53 and erx < 59){
-    cout << "\vEcond_Id: " << moduleCountr << " erx: " << erx << endl;
+    //if(erx > 53 and erx < 59){
+    //cout << "\vEcond_Id: " << moduleCountr << " erx: " << erx << endl;
     packingParameter = packingParm(allERxData[erx].tctp, allERxData[erx].adcm, allERxData[erx].adc, Thresholds[erx].adc_Threshold, Thresholds[erx].adc_Threshold);
     //bool passZSm1 = packingParameter[1];
-    cout << "erx: " << erx << " passZS: " << packingParameter[0] << " passZsm1: " << packingParameter[1] << endl;
-    }//cout << endl;
+    //cout << "erx: " << erx << " passZS: " << packingParameter[0] << " passZsm1: " << packingParameter[1] << endl;
+    //}//cout << endl;
     
     //passZSm1Parm = packingParm(allERxData[erx].adcm, allERxData[erx].adc, allERxData[erx].toa, Thresholds[erx].adc_Threshold, Thresholds[erx].adc_Threshold);
     //cout << "erx: " << erx << "  passZSm1: " << passZSm1Parm[0] << "  hasToa: " << passZSm1Parm[1] << endl;
@@ -712,7 +733,7 @@ void rawDataProducer_repacked_packingParm::produce(edm::Event& iEvent, const edm
           dataWords.push_back(eRxheader[0]);      
           dataWords.push_back(eRxheader[1]);
 
-          const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], passZS, passZSm1, hasToA, charMode, passThrough);  //eRx data for each eRX
+          const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], /*passZS, passZSm1, hasToA,*/ charMode, passThrough);  //eRx data for each eRX
           for(size_t ch = 0; ch < erx_chan_data.size(); ++ch){
             dataWords.push_back(erx_chan_data[ch]);
           }
@@ -832,7 +853,7 @@ void rawDataProducer_repacked_packingParm::produce(edm::Event& iEvent, const edm
           CRC_calc.push_back(eRxheader[0]);      
           CRC_calc.push_back(eRxheader[1]);
 
-          const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], passZS, passZSm1, hasToA, charMode, passThrough);  //eRx data for each eRX
+          const auto erx_chan_data = hgcal::econd::produceERxData(enableMaps[erx], allERxData[erx], /*passZS, passZSm1, hasToA,*/ charMode, passThrough);  //eRx data for each eRX
           for(size_t ch = 0; ch < erx_chan_data.size(); ++ch){
             econdPacket.push_back(erx_chan_data[ch]);   //filling eRx payload(channel data)
             CRC_calc.push_back(erx_chan_data[ch]);
@@ -966,17 +987,17 @@ iEvent.put(rawDataBufferPutToken_, std::move(rawDataBuffer));
 }
 
 // ------------ method called once each stream before processing any runs, lumis or events  ------------
-void rawDataProducer_repacked_packingParm::beginStream(edm::StreamID) {
+void rawDataProducer_repacked::beginStream(edm::StreamID) {
   // please remove this method if not needed
 }
 
 // ------------ method called once each stream after processing all runs, lumis and events  ------------
-void rawDataProducer_repacked_packingParm::endStream() {
+void rawDataProducer_repacked::endStream() {
   // please remove this method if not needed
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
-void rawDataProducer_repacked_packingParm::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+void rawDataProducer_repacked::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   //The following says we do not know what parameters are allowed so do no validation
   // Please change this to state exactly what you do use, even if it is no parameters
   edm::ParameterSetDescription desc;
@@ -990,4 +1011,4 @@ void rawDataProducer_repacked_packingParm::fillDescriptions(edm::ConfigurationDe
 
 
 //define this as a plug-in
-DEFINE_FWK_MODULE(rawDataProducer_repacked_packingParm);
+DEFINE_FWK_MODULE(rawDataProducer_repacked);
